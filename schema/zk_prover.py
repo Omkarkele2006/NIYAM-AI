@@ -1,12 +1,14 @@
-import os
 import json
+import subprocess
+from pathlib import Path
+
 
 INPUT_FILE = "input.json"
 WITNESS_FILE = "witness.json"
 PROOF_FILE = "proof.json"
 
 
-def generate_proof(features):
+def generate_proof(features: list) -> str | None:
 
     # -------------------------
     # STEP 1: SAVE INPUT
@@ -21,35 +23,59 @@ def generate_proof(features):
     # -------------------------
     # STEP 2: GENERATE WITNESS
     # -------------------------
+    # Replaced os.system() with subprocess.run() using an argument list.
+    # No shell=True — eliminates shell injection surface.
+    # EZKL arguments are identical to the original string form.
+    # capture_output=True captures stderr for debug visibility.
 
-    witness_cmd = (
-        f"ezkl gen-witness "
-        f"--data {INPUT_FILE} "
-        f"--compiled-circuit circuit.ezkl "
-        f"--output {WITNESS_FILE}"
+    res1 = subprocess.run(
+        [
+            "ezkl", "gen-witness",
+            "--data", INPUT_FILE,
+            "--compiled-circuit", "circuit.ezkl",
+            "--output", WITNESS_FILE,
+        ],
+        capture_output=True,
+        text=True,
     )
 
-    res1 = os.system(witness_cmd)
+    if res1.returncode != 0:
+        print("[zk_prover] gen-witness stderr:", res1.stderr.strip())
 
-    if res1 != 0:
+        # Remove any stale witness artifact so it cannot be mistaken for a
+        # valid witness on the next run through the interceptor.
+        stale_witness = Path(WITNESS_FILE)
+        if stale_witness.exists():
+            stale_witness.unlink()
+
         return None
 
     # -------------------------
     # STEP 3: GENERATE PROOF
     # -------------------------
 
-    proof_cmd = (
-        f"ezkl prove "
-        f"--witness {WITNESS_FILE} "
-        f"--compiled-circuit circuit.ezkl "
-        f"--pk-path pk.key "
-        f"--proof-path {PROOF_FILE} "
-        f"--srs-path kzg.srs"
+    res2 = subprocess.run(
+        [
+            "ezkl", "prove",
+            "--witness", WITNESS_FILE,
+            "--compiled-circuit", "circuit.ezkl",
+            "--pk-path", "pk.key",
+            "--proof-path", PROOF_FILE,
+            "--srs-path", "kzg.srs",
+        ],
+        capture_output=True,
+        text=True,
     )
 
-    res2 = os.system(proof_cmd)
+    if res2.returncode != 0:
+        print("[zk_prover] prove stderr:", res2.stderr.strip())
 
-    if res2 != 0:
+        # Remove any partially written proof artifact so the verifier cannot
+        # receive a corrupt or stale proof.json from a prior successful run.
+        stale_proof = Path(PROOF_FILE)
+        if stale_proof.exists():
+            stale_proof.unlink()
+
         return None
 
-    return PROOF_FILE
+    return PROOF_FILE
