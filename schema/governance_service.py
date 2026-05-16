@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
+import streamlit as st
+
 from schema.interceptor import InterceptionBlocked, intercept_execution
 from schema.verifier import verify_proof
 
@@ -161,6 +163,7 @@ def run_governed_action(
         )
 
 
+@st.cache_data(ttl=5, show_spinner=False)
 def load_audit_logs(
     *,
     limit: int | None = None,
@@ -170,8 +173,13 @@ def load_audit_logs(
     """
     Load audit log records from the append-only JSONL log.
 
-    Invalid or empty lines are skipped so the frontend can keep rendering even
-    if a partial write appears during a live run.
+    Cached with a 5-second TTL so that repeated calls within a single
+    Streamlit render cycle (6-8 calls per page) share one JSONL read
+    instead of re-opening the file each time.  The short TTL keeps the
+    live monitor and audit pages responsive to new governance events.
+
+    Invalid or empty lines are skipped so the frontend can keep rendering
+    even if a partial write appears during a live run.
     """
 
     path = Path(log_path)
@@ -269,18 +277,23 @@ def verify_proof_status(proof_path: Path = PROOF_PATH) -> dict[str, Any]:
         }
 
 
+@st.cache_data(ttl=5, show_spinner=False)
 def get_system_metrics() -> dict[str, Any]:
     """
     Compute high-level governance metrics for dashboard pages.
 
-    Metrics are derived from audit logs and root-level artifacts only; no proof
-    generation, model execution, or verification is triggered here.
+    Cached with a 5-second TTL — this function is called from both Home.py
+    and 1_Live_Monitor.py on every render.  The cache prevents duplicate
+    audit-log reads and list-comprehension passes within the same cycle.
+
+    Metrics are derived from audit logs and root-level artifacts only; no
+    proof generation, model execution, or verification is triggered here.
     """
 
     logs = load_audit_logs()
     executed = [row for row in logs if row.get("status") == "EXECUTED"]
-    blocked = [row for row in logs if row.get("status") == "BLOCKED"]
-    errors = [row for row in logs if row.get("status") == "ERROR"]
+    blocked  = [row for row in logs if row.get("status") == "BLOCKED"]
+    errors   = [row for row in logs if row.get("status") == "ERROR"]
     verified = [row for row in logs if row.get("verification") is True]
 
     latest_record = logs[-1] if logs else None
@@ -291,20 +304,20 @@ def get_system_metrics() -> dict[str, Any]:
     }
 
     return {
-        "total_actions": len(logs),
+        "total_actions":    len(logs),
         "executed_actions": len(executed),
-        "blocked_actions": len(blocked),
-        "error_actions": len(errors),
-        "verified_proofs": len(verified),
-        "unique_sessions": len(unique_sessions),
-        "latest_record": latest_record,
+        "blocked_actions":  len(blocked),
+        "error_actions":    len(errors),
+        "verified_proofs":  len(verified),
+        "unique_sessions":  len(unique_sessions),
+        "latest_record":    latest_record,
         "latest_timestamp": latest_record.get("timestamp") if latest_record else None,
         "artifacts": {
-            "proof": _artifact_summary(PROOF_PATH),
-            "witness": _artifact_summary(WITNESS_PATH),
-            "input": _artifact_summary(INPUT_PATH),
+            "proof":            _artifact_summary(PROOF_PATH),
+            "witness":          _artifact_summary(WITNESS_PATH),
+            "input":            _artifact_summary(INPUT_PATH),
             "verification_key": _artifact_summary(VK_PATH),
-            "circuit": _artifact_summary(CIRCUIT_PATH),
+            "circuit":          _artifact_summary(CIRCUIT_PATH),
         },
     }
 

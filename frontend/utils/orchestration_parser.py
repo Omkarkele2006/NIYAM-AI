@@ -22,6 +22,8 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
+import streamlit as st
+
 from schema.governance_service import load_audit_logs
 
 
@@ -127,6 +129,7 @@ def _session_of(row: AuditRecord) -> str | None:
 # Public API
 # ---------------------------------------------------------------------------
 
+@st.cache_data(ttl=10, show_spinner=False)
 def get_orchestration_overview() -> dict[str, int | float | str | None]:
     """Return top-level orchestration metrics for dashboard summary cards.
 
@@ -168,6 +171,7 @@ def get_orchestration_overview() -> dict[str, int | float | str | None]:
     }
 
 
+@st.cache_data(ttl=10, show_spinner=False)
 def get_session_list() -> list[dict[str, Any]]:
     """Return one summary row per unique orchestration session, newest first.
 
@@ -244,6 +248,7 @@ def get_session_list() -> list[dict[str, Any]]:
     return rows
 
 
+@st.cache_data(ttl=5, show_spinner=False)
 def get_session_proposals(session_id: str) -> list[dict[str, Any]]:
     """Return display-safe proposal event rows for one orchestration session.
 
@@ -298,6 +303,7 @@ def get_session_proposals(session_id: str) -> list[dict[str, Any]]:
     return result
 
 
+@st.cache_data(ttl=10, show_spinner=False)
 def get_proposal_status_distribution() -> list[dict[str, Any]]:
     """Return proposal counts by status for donut and bar chart rendering.
 
@@ -328,6 +334,7 @@ def get_proposal_status_distribution() -> list[dict[str, Any]]:
     ]
 
 
+@st.cache_data(ttl=10, show_spinner=False)
 def get_blocked_proposal_analytics() -> dict[str, Any]:
     """Return structured analytics for blocked proposal panels.
 
@@ -386,6 +393,7 @@ def get_blocked_proposal_analytics() -> dict[str, Any]:
     }
 
 
+@st.cache_data(ttl=15, show_spinner=False)
 def get_orchestration_timeline() -> list[dict[str, Any]]:
     """Return minute-bucketed event counts for orchestration timeline charts.
 
@@ -419,6 +427,7 @@ def get_orchestration_timeline() -> list[dict[str, Any]]:
     ]
 
 
+@st.cache_data(ttl=10, show_spinner=False)
 def get_intent_hash_groups() -> list[dict[str, Any]]:
     """Return proposal counts grouped by intent_hash (governance contract).
 

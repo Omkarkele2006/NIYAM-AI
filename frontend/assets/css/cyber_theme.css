@@ -89,6 +89,12 @@ div {
    MAIN APP BACKGROUND
 ========================= */
 
+/*
+   overflow-x is intentionally omitted from .stApp.
+   Setting overflow-x:hidden on a scroll-container ancestor clips
+   position:fixed children (including the sidebar) in some browsers.
+   Horizontal overflow is already constrained by .block-container max-width.
+*/
 .stApp {
 
     background:
@@ -112,21 +118,16 @@ div {
 
         var(--primary-bg);
 
-    /* FIX 1: overflow-x:hidden clips position:fixed sidebar at narrow viewports.
-       Removed — the scanline overlay uses pointer-events:none so no interaction
-       is lost, and horizontal scroll is prevented by block-container max-width. */
-
 }
 
+/* Scanline overlay — purely decorative, never intercepts input. */
 .stApp::before {
 
     content: "";
     pointer-events: none;
     position: fixed;
     inset: 0;
-    /* FIX 2: keep scanline overlay below sidebar z-index (sidebar uses ~100+).
-       z-index:0 is fine — sidebar sits in a higher stacking context. */
-    z-index: 0;
+    z-index: 0;                 /* below sidebar (z-index ~100) */
     background:
         linear-gradient(
             rgba(255,255,255,0.018) 1px,
@@ -134,21 +135,28 @@ div {
         );
     background-size: 100% 4px;
     opacity: 0.22;
+    /* Prevent browser from creating an unnecessary GPU compositor layer.
+       The overlay is static and pointer-events:none; will-change:auto lets
+       the browser decide whether to promote it rather than always compositing. */
+    will-change: auto;
 
 }
 
+/*
+   z-index must stay `auto` here.  Setting a numeric z-index on this
+   element creates a new stacking context that competes with the
+   sidebar, which Streamlit renders as a sibling using z-index ~100.
+*/
 .stApp > div {
 
     position: relative;
-    /* FIX 3: z-index:1 here would bury sidebar siblings. Reset to auto so
-       Streamlit's own sidebar stacking context (z-index ~100) takes effect. */
     z-index: auto;
 
 }
 
 
 /* =========================
-   REMOVE STREAMLIT DEFAULTS
+   STREAMLIT CHROME — HIDE
 ========================= */
 
 #MainMenu {
@@ -159,24 +167,16 @@ footer {
     visibility: hidden;
 }
 
-/* FIX 4: header{visibility:hidden} hides the sidebar collapse/expand toggle
-   button ([data-testid="collapsedControl"]) because Streamlit renders it
-   inside the <header> element. We must hide only the deploy toolbar area,
-   not the entire header, so the sidebar control remains accessible. */
-
+/*
+   We target only Streamlit's toolbar/decoration widgets, NOT the
+   <header> element itself.  The <header> contains the sidebar
+   collapse/expand toggle ([data-testid="collapsedControl"]);
+   hiding the entire <header> makes that button unreachable.
+*/
 [data-testid="stToolbar"],
 [data-testid="stDecoration"],
 [data-testid="stStatusWidget"] {
     visibility: hidden;
-}
-
-/* Ensure the sidebar collapse control is always visible and interactive. */
-[data-testid="collapsedControl"] {
-    visibility: visible !important;
-    display: flex !important;
-    opacity: 1 !important;
-    pointer-events: all !important;
-    z-index: 999999 !important;
 }
 
 
@@ -218,6 +218,20 @@ hr {
    SIDEBAR
 ========================= */
 
+/*
+   Three layout guarantees applied here:
+
+   1. transform:none — Streamlit collapses the sidebar by applying
+      transform:translateX(-110%), sliding it off-screen.  Overriding
+      this keeps the panel permanently on-screen without relying on
+      session-state to remember the "expanded" preference.
+
+   2. z-index:100 — must beat the z-index:0 scanline overlay and any
+      stacking context created by siblings.
+
+   3. min-width:21rem — prevents width collapsing to 0 when Streamlit
+      sets its internal width variable during a collapsed state.
+*/
 section[data-testid="stSidebar"] {
 
     background:
@@ -225,43 +239,15 @@ section[data-testid="stSidebar"] {
             180deg,
             rgba(5,8,20,0.98),
             rgba(9,14,28,0.98)
-        ) !important;
+        ) !important;            /* !important required — Streamlit inlines background */
     border-right: 1px solid rgba(0,209,255,0.20);
     box-shadow:
         8px 0 26px rgba(0,0,0,0.28),
         inset -1px 0 0 rgba(157,78,221,0.10);
 
-    /* FIX 5: Guarantee sidebar is always above the scanline overlay and any
-       stApp > div stacking context, matching Streamlit's own z-index range. */
-    z-index: 100 !important;
-    visibility: visible !important;
-    display: block !important;
-
-}
-
-section[data-testid="stSidebar"]::before {
-
-    content: "NIYAM-AI";
-    display: block;
-    padding: 1.35rem 1.3rem 0.35rem;
-    font-family: 'Orbitron', sans-serif;
-    color: var(--text-primary);
-    font-size: 1.05rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-shadow: 0 0 14px rgba(0,209,255,0.42);
-
-}
-
-section[data-testid="stSidebar"]::after {
-
-    content: "Governance Console";
-    display: block;
-    padding: 0 1.3rem 1rem;
-    color: var(--text-secondary);
-    font-size: 0.78rem;
-    letter-spacing: 0.04em;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    z-index: 100;
+    transform: none !important;  /* !important required — overrides Streamlit's inline transform */
+    min-width: 21rem;
 
 }
 
@@ -332,6 +318,38 @@ button[kind="header"] {
 
     color: var(--text-primary) !important;
 
+}
+
+
+/* =========================
+   SIDEBAR COLLAPSE CONTROL
+========================= */
+
+/*
+   [data-testid="collapsedControl"] is the toggle button Streamlit
+   renders when the sidebar is in its collapsed state.
+
+   Two issues required fixing:
+   a) z-index alone has no effect without an explicit position context.
+   b) The button can land off-screen or behind the scanline overlay.
+
+   Solution: force position:fixed at a known safe coordinate with a
+   z-index well above all custom layers.  The `top`/`left` values
+   match where Streamlit naturally places the button when unconstrained,
+   so visually nothing changes from the user's perspective.
+*/
+[data-testid="collapsedControl"] {
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 999999;
+    opacity: 1;
+    display: flex;
+    visibility: visible;
+    pointer-events: all;
+    transform: none;
+    clip: auto;
+    clip-path: none;
 }
 
 
@@ -433,9 +451,9 @@ button[kind="header"] {
 
     padding: 1.45rem;
 
-    backdrop-filter: blur(14px);
+    backdrop-filter: blur(8px);
 
-    -webkit-backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(8px);
 
     transition:
         transform 0.24s ease,
@@ -480,7 +498,7 @@ button[kind="header"] {
 
     padding: 1.25rem;
 
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(6px);
 
     transition:
         transform 0.24s ease,
