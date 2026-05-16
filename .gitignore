@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+.env
+
+# Streamlit
+.streamlit/
+
+# Logs
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# ML / zk Generated Files
+*.onnx
+*.jsonl
+witness.json
+proof.json
+pk.key
+vk.key
+kzg.srs
+circuit.ezkl
+
+# Temporary
+temp/
+tmp/
+
+# Cache
+.cache/

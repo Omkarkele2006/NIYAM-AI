@@ -1,0 +1,399 @@
+/* =========================================================
+   NIYAM-AI CYBER THEME
+   Futuristic AI Governance UI
+========================================================= */
+
+
+/* =========================
+   GOOGLE FONT
+========================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+
+/* =========================
+   ROOT VARIABLES
+========================= */
+
+:root {
+
+    --primary-bg: #0B1020;
+    --secondary-bg: #121A2B;
+
+    --card-bg: rgba(18, 26, 43, 0.72);
+
+    --neon-blue: #00D1FF;
+    --neon-purple: #9D4EDD;
+
+    --success: #00FF88;
+    --danger: #FF3B5C;
+    --warning: #FFC857;
+
+    --text-primary: #E6F1FF;
+    --text-secondary: #93A4C3;
+
+    --border: rgba(255,255,255,0.08);
+
+    --shadow-blue:
+        0 0 10px rgba(0,209,255,0.45),
+        0 0 20px rgba(0,209,255,0.25);
+
+    --shadow-purple:
+        0 0 10px rgba(157,78,221,0.45),
+        0 0 20px rgba(157,78,221,0.25);
+
+}
+
+
+/* =========================
+   GLOBAL RESET
+========================= */
+
+html,
+body,
+[class*="css"] {
+
+    font-family: 'Inter', sans-serif;
+    color: var(--text-primary);
+
+}
+
+
+/* =========================
+   MAIN APP BACKGROUND
+========================= */
+
+.stApp {
+
+    background:
+        radial-gradient(circle at top left,
+            rgba(0,209,255,0.08),
+            transparent 30%),
+
+        radial-gradient(circle at bottom right,
+            rgba(157,78,221,0.08),
+            transparent 30%),
+
+        var(--primary-bg);
+
+    overflow-x: hidden;
+
+}
+
+
+/* =========================
+   REMOVE STREAMLIT DEFAULTS
+========================= */
+
+#MainMenu {
+    visibility: hidden;
+}
+
+footer {
+    visibility: hidden;
+}
+
+header {
+    visibility: hidden;
+}
+
+
+/* =========================
+   HERO SECTION
+========================= */
+
+.hero-container {
+
+    padding-top: 2rem;
+    padding-bottom: 1rem;
+
+}
+
+.hero-title {
+
+    font-family: 'Orbitron', sans-serif;
+
+    font-size: 4rem;
+    font-weight: 700;
+
+    color: var(--text-primary);
+
+    letter-spacing: 2px;
+
+    text-shadow:
+        0 0 10px rgba(0,209,255,0.7),
+        0 0 25px rgba(0,209,255,0.4);
+
+    margin-bottom: 0.5rem;
+
+}
+
+.hero-subtitle {
+
+    font-size: 1.15rem;
+
+    color: var(--text-secondary);
+
+    max-width: 900px;
+
+    line-height: 1.7;
+
+}
+
+
+/* =========================
+   SECTION TITLE
+========================= */
+
+.section-title {
+
+    font-family: 'Orbitron', sans-serif;
+
+    font-size: 1.3rem;
+    font-weight: 600;
+
+    color: var(--neon-blue);
+
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+
+    letter-spacing: 1px;
+
+}
+
+
+/* =========================
+   GLASS CARD
+========================= */
+
+.cyber-card {
+
+    background: var(--card-bg);
+
+    border: 1px solid var(--border);
+
+    border-radius: 20px;
+
+    padding: 1.5rem;
+
+    backdrop-filter: blur(14px);
+
+    -webkit-backdrop-filter: blur(14px);
+
+    transition: all 0.35s ease;
+
+    box-shadow:
+        0 4px 30px rgba(0,0,0,0.25);
+
+}
+
+.cyber-card:hover {
+
+    transform: translateY(-4px);
+
+    border-color: rgba(0,209,255,0.35);
+
+    box-shadow:
+        0 0 18px rgba(0,209,255,0.18);
+
+}
+
+
+/* =========================
+   METRIC CARD
+========================= */
+
+.metric-card {
+
+    background: var(--card-bg);
+
+    border: 1px solid rgba(0,209,255,0.15);
+
+    border-radius: 18px;
+
+    padding: 1.3rem;
+
+    backdrop-filter: blur(12px);
+
+    transition: all 0.3s ease;
+
+}
+
+.metric-card:hover {
+
+    transform: translateY(-5px);
+
+    box-shadow: var(--shadow-blue);
+
+}
+
+.metric-title {
+
+    color: var(--text-secondary);
+
+    font-size: 0.9rem;
+
+    margin-bottom: 0.5rem;
+
+}
+
+.metric-value {
+
+    font-size: 2rem;
+
+    font-weight: 700;
+
+    color: var(--text-primary);
+
+}
+
+
+/* =========================
+   TERMINAL
+========================= */
+
+.terminal {
+
+    background: #050814;
+
+    border: 1px solid rgba(0,209,255,0.18);
+
+    border-radius: 16px;
+
+    padding: 1rem;
+
+    font-family: monospace;
+
+    color: var(--success);
+
+    height: 350px;
+
+    overflow-y: auto;
+
+    box-shadow:
+        inset 0 0 15px rgba(0,209,255,0.05);
+
+}
+
+
+/* =========================
+   BUTTONS
+========================= */
+
+.stButton > button {
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(0,209,255,0.18),
+            rgba(157,78,221,0.18)
+        );
+
+    color: var(--text-primary);
+
+    border: 1px solid rgba(0,209,255,0.3);
+
+    border-radius: 14px;
+
+    padding: 0.7rem 1.5rem;
+
+    font-weight: 600;
+
+    transition: all 0.3s ease;
+
+}
+
+.stButton > button:hover {
+
+    transform: translateY(-2px);
+
+    box-shadow: var(--shadow-blue);
+
+    border-color: var(--neon-blue);
+
+}
+
+
+/* =========================
+   INPUTS
+========================= */
+
+.stTextInput input,
+.stTextArea textarea {
+
+    background: rgba(255,255,255,0.04) !important;
+
+    color: var(--text-primary) !important;
+
+    border-radius: 14px !important;
+
+    border: 1px solid rgba(255,255,255,0.08) !important;
+
+}
+
+
+/* =========================
+   SCROLLBAR
+========================= */
+
+::-webkit-scrollbar {
+
+    width: 10px;
+
+}
+
+::-webkit-scrollbar-track {
+
+    background: #0A0F1C;
+
+}
+
+::-webkit-scrollbar-thumb {
+
+    background: rgba(0,209,255,0.35);
+
+    border-radius: 10px;
+
+}
+
+::-webkit-scrollbar-thumb:hover {
+
+    background: rgba(0,209,255,0.55);
+
+}
+
+
+/* =========================
+   ANIMATIONS
+========================= */
+
+@keyframes pulseGlow {
+
+    0% {
+
+        box-shadow:
+            0 0 5px rgba(0,209,255,0.2);
+
+    }
+
+    50% {
+
+        box-shadow:
+            0 0 20px rgba(0,209,255,0.45);
+
+    }
+
+    100% {
+
+        box-shadow:
+            0 0 5px rgba(0,209,255,0.2);
+
+    }
+
+}
+
+.glow-animation {
+
+    animation: pulseGlow 2.5s infinite;
+
+}
