@@ -112,7 +112,9 @@ div {
 
         var(--primary-bg);
 
-    overflow-x: hidden;
+    /* FIX 1: overflow-x:hidden clips position:fixed sidebar at narrow viewports.
+       Removed — the scanline overlay uses pointer-events:none so no interaction
+       is lost, and horizontal scroll is prevented by block-container max-width. */
 
 }
 
@@ -122,6 +124,8 @@ div {
     pointer-events: none;
     position: fixed;
     inset: 0;
+    /* FIX 2: keep scanline overlay below sidebar z-index (sidebar uses ~100+).
+       z-index:0 is fine — sidebar sits in a higher stacking context. */
     z-index: 0;
     background:
         linear-gradient(
@@ -136,7 +140,9 @@ div {
 .stApp > div {
 
     position: relative;
-    z-index: 1;
+    /* FIX 3: z-index:1 here would bury sidebar siblings. Reset to auto so
+       Streamlit's own sidebar stacking context (z-index ~100) takes effect. */
+    z-index: auto;
 
 }
 
@@ -153,8 +159,24 @@ footer {
     visibility: hidden;
 }
 
-header {
+/* FIX 4: header{visibility:hidden} hides the sidebar collapse/expand toggle
+   button ([data-testid="collapsedControl"]) because Streamlit renders it
+   inside the <header> element. We must hide only the deploy toolbar area,
+   not the entire header, so the sidebar control remains accessible. */
+
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"] {
     visibility: hidden;
+}
+
+/* Ensure the sidebar collapse control is always visible and interactive. */
+[data-testid="collapsedControl"] {
+    visibility: visible !important;
+    display: flex !important;
+    opacity: 1 !important;
+    pointer-events: all !important;
+    z-index: 999999 !important;
 }
 
 
@@ -208,6 +230,12 @@ section[data-testid="stSidebar"] {
     box-shadow:
         8px 0 26px rgba(0,0,0,0.28),
         inset -1px 0 0 rgba(157,78,221,0.10);
+
+    /* FIX 5: Guarantee sidebar is always above the scanline overlay and any
+       stApp > div stacking context, matching Streamlit's own z-index range. */
+    z-index: 100 !important;
+    visibility: visible !important;
+    display: block !important;
 
 }
 
