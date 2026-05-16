@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import streamlit as st
 
 
@@ -31,10 +33,11 @@ def configure_page(title="NIYAM-AI"):
 
     st.set_page_config(
         page_title=title,
-        page_icon="🛡️",
+        page_icon="NI",
         layout="wide",
-        initial_sidebar_state="collapsed"
+        initial_sidebar_state="expanded"
     )
+    load_global_css()
 
 
 # =========================
@@ -43,7 +46,9 @@ def configure_page(title="NIYAM-AI"):
 
 def load_global_css():
 
-    with open("frontend/assets/css/cyber_theme.css") as f:
+    css_path = Path(__file__).resolve().parents[1] / "assets" / "css" / "cyber_theme.css"
+
+    with css_path.open("r", encoding="utf-8") as f:
         css = f.read()
 
     st.markdown(
