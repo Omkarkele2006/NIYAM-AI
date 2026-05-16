@@ -1,4 +1,13 @@
+import sys
+from pathlib import Path
+
 import streamlit as st
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from schema.governance_service import get_system_metrics
 
 from utils.theme import (
     configure_page,
@@ -50,6 +59,8 @@ st.markdown("<br>", unsafe_allow_html=True)
 # METRICS SECTION
 # =========================================================
 
+metrics = get_system_metrics()
+
 section_title("SYSTEM METRICS")
 
 
@@ -59,9 +70,9 @@ col1, col2, col3, col4 = st.columns(4)
 with col1:
 
     metric_card(
-        "Verified Executions",
-        "12,482",
-        "+12.8% this week",
+        "Total Actions",
+        str(metrics["total_actions"]),
+        "Audit log records",
         "success"
     )
 
@@ -69,9 +80,9 @@ with col1:
 with col2:
 
     metric_card(
-        "Threats Blocked",
-        "1,294",
-        "+4.2% today",
+        "Executed Actions",
+        str(metrics["executed_actions"]),
+        "Governed executions",
         "danger"
     )
 
@@ -79,9 +90,9 @@ with col2:
 with col3:
 
     metric_card(
-        "zk Proofs Generated",
-        "8,104",
-        "Realtime pipeline",
+        "Blocked Actions",
+        str(metrics["blocked_actions"]),
+        "Policy or proof blocks",
         "normal"
     )
 
@@ -89,9 +100,9 @@ with col3:
 with col4:
 
     metric_card(
-        "Avg Verification",
-        "0.82s",
-        "Optimized",
+        "Verified Proofs",
+        str(metrics["verified_proofs"]),
+        "Cryptographic checks",
         "warning"
     )
 
