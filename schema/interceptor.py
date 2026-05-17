@@ -3,10 +3,19 @@ from schema.audit_logger import log_event
 from schema.zk_prover import generate_proof
 from schema.verifier import verify_proof
 from schema.ml.feature_extractor import extract_features
+from schema.orchestration.execution_runtime import (
+    GovernedExecutionContext,
+    GovernedExecutionRuntime,
+    derive_execution_id,
+)
 
 
 class InterceptionBlocked(Exception):
     pass
+
+
+# Module-level runtime instance.  Stateless between calls — safe to reuse.
+_runtime = GovernedExecutionRuntime()
 
 
 def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
@@ -48,8 +57,28 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
         if not verified:
             raise Exception("Proof verification failed")
 
-        # STEP 7: EXECUTE
-        result = execute_func(tool_name, payload)
+        # STEP 7: GOVERNED EXECUTION — timeout-enforced, proof-bound runtime
+        exec_context = GovernedExecutionContext(
+            execution_id=derive_execution_id(
+                action_hash=action_hash,
+                intent_hash=intent_hash,
+                proof_path=str(proof_path),
+            ),
+            tool_name=tool_name,
+            action_hash=action_hash,
+            intent_hash=intent_hash,
+            proof_path=str(proof_path),
+            proof_verified=verified,
+            session_id=contract.session_id,
+        )
+
+        exec_result = _runtime.execute_governed(
+            context=exec_context,
+            execute_func=execute_func,
+            payload=payload,
+        )
+
+        result = exec_result.result
 
         # STEP 8: LOG SUCCESS
         log_event({
@@ -60,7 +89,8 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
             "features": features,
             "proof": proof_path,
             "verification": True,
-            "status": "EXECUTED"
+            "status": "EXECUTED",
+            "execution_id": exec_context.execution_id,
         })
 
         return result
