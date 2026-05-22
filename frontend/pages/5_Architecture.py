@@ -227,12 +227,14 @@ fig_lifecycle.update_layout(
 )
 st.plotly_chart(fig_lifecycle, use_container_width=True)
 
-section_title("GOVERNANCE ENGINE ARCHITECTURE")
-
 mod_col1, mod_col2, mod_col3, mod_col4 = st.columns(4)
 
 with mod_col1:
-    _module_card("interceptor.py", "Central policy enforcement point for all governed actions.", "ActionHash, proof, verification, audit status")
+    _module_card(
+        "interceptor.py",
+        "Central policy enforcement point for all governed actions.",
+        "ActionHash, proof, verification, audit status",
+    )
 
 with mod_col2:
     _module_card("intent_contract.py", "Defines session-bound allowed and forbidden tool policies.", "IntentHash and sealed policy identity")
@@ -336,21 +338,7 @@ fig_security.update_layout(
 )
 st.plotly_chart(fig_security, use_container_width=True)
 
-section_title("TECHNOLOGY STACK")
-
 tech_col1, tech_col2, tech_col3, tech_col4 = st.columns(4)
-
-with tech_col1:
-    cyber_card("Application Layer", "Python<br>Streamlit<br>Plotly", min_height="190px")
-
-with tech_col2:
-    cyber_card("ML Layer", "PyTorch<br>ONNX<br>Feature extraction", min_height="190px")
-
-with tech_col3:
-    cyber_card("Proof Layer", "EZKL<br>zkML<br>Witness generation", min_height="190px")
-
-with tech_col4:
-    cyber_card("Cryptographic Layer", "SHA-256<br>ActionHash<br>IntentHash<br>Audit hash-chain", min_height="190px")
 
 section_title("TEAM")
 

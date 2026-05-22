@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import sys
 from collections import Counter
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -26,33 +25,12 @@ from utils.audit_parser import (
     get_verification_statistics,
 )
 from utils.theme import configure_page, load_global_css, section_title
-
-
-def _parse_timestamp(value: str | None) -> datetime | None:
-    """Parse audit timestamps into UTC datetimes for sorting and display."""
-
-    if not value:
-        return None
-
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-
-    return parsed.astimezone(timezone.utc)
+from utils.time_utils import format_timestamp_table, parse_utc_timestamp
 
 
 def _format_timestamp(value: str | None) -> str:
-    """Format audit timestamps for compact table display."""
-
-    parsed = _parse_timestamp(value)
-    if parsed is None:
-        return "-"
-
-    return parsed.strftime("%Y-%m-%d %H:%M:%S UTC")
+    """Format audit timestamps for compact table display in IST."""
+    return format_timestamp_table(value)
 
 
 def _short_value(value: str | None, length: int = 14) -> str:
@@ -126,7 +104,7 @@ status_badge("APPEND-ONLY TRACE", "info")
 logs = load_audit_logs()
 logs = sorted(
     logs,
-    key=lambda row: _parse_timestamp(row.get("timestamp")) or datetime.min.replace(tzinfo=timezone.utc),
+    key=lambda row: parse_utc_timestamp(row.get("timestamp")) or parse_utc_timestamp("1970-01-01T00:00:00Z"),
     reverse=True,
 )
 
@@ -246,19 +224,19 @@ section_title("RECENT EXECUTION TIMELINE")
 
 timeline_rows = [
     {
-        "timestamp": _parse_timestamp(row.get("timestamp")),
+        "timestamp": parse_utc_timestamp(row.get("timestamp")),
         "status": row.get("status", "UNKNOWN"),
         "tool": row.get("tool_name", "unknown"),
     }
     for row in filtered_logs
-    if _parse_timestamp(row.get("timestamp")) is not None
+    if parse_utc_timestamp(row.get("timestamp")) is not None
 ]
 
 if timeline_rows:
     timeline_rows = sorted(timeline_rows, key=lambda row: row["timestamp"])
     timeline_counts = Counter(
         (
-            row["timestamp"].strftime("%Y-%m-%d %H:%M"),
+            format_timestamp_table(row["timestamp"]).replace(" IST", ""),
             row["status"],
         )
         for row in timeline_rows

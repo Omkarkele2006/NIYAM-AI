@@ -1,6 +1,8 @@
-# NIYAM-AI
+﻿# NIYAM-AI
 
-## Intent-Bound Verifiable AI Governance System
+## Intent-Bound Verifiable AI Governance Platform
+
+NIYAM-AI is a research-oriented AI governance prototype that combines intent-bound execution, zkML verification concepts, cryptographic integrity, and real-time observability into a unified secure orchestration system.
 
 ![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
@@ -8,79 +10,63 @@
 ![zkML](https://img.shields.io/badge/zkML-Verifiable_AI-9D4EDD?style=for-the-badge)
 ![EZKL](https://img.shields.io/badge/EZKL-Proof_System-00D1FF?style=for-the-badge)
 
-NIYAM-AI is a futuristic AI governance and observability platform developed at **Vishwakarma Institute of Technology (VIT), Pune**. It explores how autonomous AI execution can be made intent-bound, cryptographically traceable, proof-aware, and operationally observable.
+NIYAM-AI is a verifiable AI governance and observability platform developed at **Vishwakarma Institute of Technology (VIT), Pune**. It demonstrates how AI action proposals can be made intent-bound, proof-aware, tamper-evident, and operationally observable.
 
-The platform combines **Intent Contracts**, **Tool Governance**, **zkML Proof Generation**, **Cryptographic Verification**, **Immutable Audit Logging**, **Real-time Governance Monitoring**, **Threat Analytics**, and **Proof Transparency** into a single research-grade prototype.
+The prototype integrates **intent contracts**, **tool authorization**, **zkML proof generation**, **verification-key integrity**, **append-only audit logging**, and **real-time dashboard observability** into a single engineering demo.
 
 ---
 
 ## Project Overview
 
-Modern AI agents can trigger tools, access data, call APIs, execute transactions, and interact with external systems. This creates a governance challenge: how do we ensure that an AI system only performs actions aligned with the user's authorized intent?
+Modern AI systems can request tools, execute actions, or interact with external services. NIYAM-AI introduces a governance boundary that intercepts those requests and validates them before execution.
 
-NIYAM-AI addresses this problem by placing a governance boundary between the agent's proposed action and the actual execution layer.
+Every governed action in NIYAM-AI is:
 
-Every governed action is:
-
-1. Bound to an intent contract.
-2. Checked against tool authority rules.
-3. Converted into deterministic governance features.
+1. Bound to an authorized intent contract.
+2. Checked by a tool gate and control-flow policy.
+3. Transformed into deterministic governance features.
 4. Passed through a zkML proof pipeline.
-5. Verified before execution.
-6. Written into an append-only audit trail.
-7. Displayed through a real-time observability dashboard.
+5. Verified against a verification key.
+6. Logged in a tamper-evident audit trail.
+7. Presented in a realtime observability dashboard.
 
-The result is a practical prototype for **verifiable AI governance**, where AI execution is not only monitored but also cryptographically accountable.
+This architecture enables a verifiable AI workflow where operational intent, tool authorization, and execution transparency are enforced together.
 
 ---
 
 ## Key Features
 
-- **Intent Contracts**  
-  Session-bound contracts define allowed tools, forbidden tools, user task scope, and deterministic intent hashes.
-
-- **Tool Governance**  
-  Centralized tool authorization prevents unauthorized or forbidden actions from executing.
-
-- **Control-Flow Integrity**  
-  Expected execution sequences are validated before tool execution.
-
-- **Cryptographic Action Hashing**  
-  Each tool invocation is hashed using deterministic SHA-256 action hashing.
-
-- **zkML Proof Generation**  
-  Governance features are encoded into witness data and used to generate proof artifacts.
-
-- **Cryptographic Verification**  
-  Proof verification and verification-key integrity checks create a fail-safe execution boundary.
-
-- **Immutable Audit Logging**  
-  Governance events are appended to JSONL logs with hash-chain metadata.
-
-- **Threat Analytics**  
-  Streamlit dashboards expose blocked actions, tool activity, recent threat events, and verification coverage.
-
-- **Proof Transparency**  
-  Proof, witness, verification key, and audit evidence are made inspectable through the frontend.
+- **AI Orchestration Runtime** — session-level proposal tracking, execution flow monitoring, and runtime governance analytics.
+- **Governed Execution Console** — profile-driven user execution with configurable governance modes.
+- **Intent Contracts** — approved task semantics and tool policies bound to user intent.
+- **Tool Gate Enforcement** — unauthorized actions are blocked before reaching execution.
+- **Control-Flow Integrity** — allows only expected governance sequences.
+- **ActionHash / IntentHash** — deterministic cryptographic integrity for each governed action.
+- **zkML Proof Pipeline** — witness generation, ONNX model export, EZKL proof creation.
+- **Verification-Key Integrity** — SHA-256 validation of verification artifacts.
+- **Audit Logs** — tamper-evident append-only JSONL history with hash-chain metadata.
+- **Threat Analytics** — blocked action detection and threat signal visualization.
+- **Proof Explorer** — examine proof metadata, witness data, and verification status.
+- **Frontend Observability** — Streamlit multipage dashboard for governance insights.
 
 ---
 
 ## System Architecture
 
-The architecture centers on a governance pipeline that intercepts AI tool execution requests before they reach the execution layer.
+The architecture centers on a governance pipeline that intercepts AI tool execution requests prior to execution.
 
 ![NIYAM-AI System Architecture](frontend/assets/images/niyam_architecture.png)
 
 ### Architecture Layers
 
-- **Agent Layer**: Accepts user prompts and proposes tool actions.
-- **Intent Layer**: Creates sealed, hash-bound intent contracts.
-- **Guardrail Layer**: Enforces control-flow and tool authorization.
-- **zkML Layer**: Extracts features and generates proof artifacts.
-- **Verification Layer**: Verifies proof integrity before execution.
-- **Execution Layer**: Executes only governed and verified actions.
-- **Audit Layer**: Records tamper-evident governance events.
-- **Observability Layer**: Displays realtime metrics, proofs, threats, and logs.
+- **Agent Layer**: receives user prompts and proposed actions.
+- **Intent Layer**: binds each request to an intent contract.
+- **Guardrail Layer**: enforces policies, tool authorization, and control flow.
+- **zkML Layer**: converts governance signals into witness features and proof inputs.
+- **Verification Layer**: validates proof artifacts and verification keys.
+- **Execution Layer**: executes only governance-approved actions.
+- **Audit Layer**: appends every governance event to a tamper-evident log.
+- **Observability Layer**: visualizes operational trust signals in Streamlit.
 
 ---
 
@@ -91,125 +77,148 @@ Prompt
   -> Intent Contract
   -> Governance Validation
   -> Tool Gate
-  -> zkML Feature Extraction
+  -> Feature Extraction
   -> Proof Generation
   -> Verification
   -> Secure Execution
-  -> Immutable Audit Logging
-  -> Frontend Observability
+  -> Audit Logging
+  -> Observability
 ```
 
-### Lifecycle Explanation
+### Lifecycle Description
 
-1. **Prompt**  
-   A user or agent request enters the governance boundary.
-
-2. **Intent Contract**  
-   The requested task is bound to an allowed/forbidden tool policy.
-
-3. **Governance Validation**  
-   Control-flow integrity and policy constraints are checked.
-
-4. **Tool Gate**  
-   Unauthorized tools are blocked before reaching execution.
-
-5. **zkML Feature Extraction**  
-   ActionHash, IntentHash, tool identity, payload size, and security signals are converted into numeric model features.
-
-6. **Proof Generation**  
-   EZKL generates witness and proof artifacts for the model execution path.
-
-7. **Verification**  
-   Proof validity and verification-key integrity are checked.
-
-8. **Secure Execution**  
-   The tool executes only if governance and verification succeed.
-
-9. **Immutable Audit Logging**  
-   Every attempt is recorded in an append-only governance log.
-
-10. **Frontend Observability**  
-   Streamlit dashboards expose operational trust signals.
+1. **Prompt**
+   - A user or agent request enters the governance boundary.
+2. **Intent Contract**
+   - The request is bound to an intent policy that defines allowed and forbidden tools.
+3. **Governance Validation**
+   - Control-flow and tool policy checks are performed.
+4. **Tool Gate**
+   - Unauthorized or unsafe tools are blocked.
+5. **Feature Extraction**
+   - Action metadata is converted into deterministic zkML features.
+6. **Proof Generation**
+   - EZKL generates witness and proof artifacts for the model inference.
+7. **Verification**
+   - Proofs are validated against the verification key.
+8. **Secure Execution**
+   - Only verified actions proceed to execution.
+9. **Audit Logging**
+   - Results are appended to an append-only audit log.
+10. **Observability**
+   - Metrics, threats, and proof status are displayed on the dashboard.
 
 ---
 
-## zkML Pipeline
+## Core Concepts
 
-NIYAM-AI uses a lightweight ML-based governance model prepared for zkML verification.
+### IntentHash
+A deterministic hash representing the authorized intent contract and permitted request semantics.
 
-### Pipeline Stages
+### ActionHash
+A deterministic SHA-256 hash computed from the tool invocation, payload, intent contract, and execution metadata.
 
-- **Feature Extraction**  
-  Converts governance metadata into deterministic numeric features.
+### Witness
+Structured runtime input data used by the zkML proof system to attest to governance feature processing.
 
-- **Model Training**  
-  A compact PyTorch model is trained on synthetic governance/action data.
+### Proof
+A cryptographic artifact produced by EZKL that attests to the correctness of the model computation over the witness.
 
-- **ONNX Export**  
-  The model is exported into an ONNX-compatible graph.
+### Verification Key
+A public verification artifact used to validate zkML proofs. Its integrity is validated by SHA-256.
 
-- **EZKL Circuit Preparation**  
-  ONNX operators are adapted for EZKL-compatible proof generation.
-
-- **Witness Generation**  
-  Runtime input features are encoded into a witness file.
-
-- **Proof Generation**  
-  EZKL generates a cryptographic proof of model execution.
-
-- **Proof Verification**  
-  The proof is verified using the verification key and structured reference string.
-
-- **Verification-Key Integrity**  
-  The verification key is checked using SHA-256 hashing before proof verification.
+### Proof Verification
+The process of checking proof validity against the verification key and confirming that the verification key itself has not been altered.
 
 ---
 
-## Frontend Observability Platform
+## Tamper-Evident Governance
 
-The Streamlit frontend provides a cyber-governance dashboard for monitoring the entire platform.
+NIYAM-AI uses deterministic hashing and append-only logging to make governance events tamper-detectable.
 
-### Pages
+### Why It Matters
+Any change to a governed action, tool payload, or intent contract produces a new ActionHash. This means altered requests cannot be hidden as unchanged data.
 
-- **Home Dashboard**  
-  High-level governance metrics powered by real audit logs.
+### Example
+Original action:
 
-- **Live Monitor**  
-  Real-time operations dashboard with governance event stream, blocked action alerts, proof activity, and execution pipeline visualization.
+```text
+Send 100 Rs to Om
+```
 
-- **Threat Analytics**  
-  Blocked-action statistics, tool usage frequency, recent threat activity, and verification metrics.
+Modified action:
 
-- **Proof Explorer**  
-  Proof metadata, witness visibility, verification status, verification key hash, and JSON inspectors.
+```text
+Send 10000 Rs to Om
+```
 
-- **Audit Logs**  
-  Searchable and filterable audit table with action hashes, session filtering, proof status, and detailed metadata inspection.
+The resulting ActionHashes will be completely different, revealing the alteration.
 
-- **Architecture**  
-  Technical architecture overview for demos and evaluations.
-
-- **About**  
-  Research vision, mission, team, mentor, roadmap, and institution context.
-
-- **Contact**  
-  Project contact, repository, team directory, and collaboration details.
+### Security Properties
+- **Deterministic SHA-256 hashing** for action integrity.
+- **Append-only audit logs** for historical record protection.
+- **Proof verification** for governance decision validation.
 
 ---
 
-## Technology Stack
+## AI Orchestration Runtime
 
-| Layer | Technologies |
-|---|---|
-| Frontend | Streamlit, Plotly, HTML/CSS |
-| Backend | Python |
-| ML Model | PyTorch |
-| Model Interchange | ONNX |
-| Proof System | EZKL |
-| Cryptography | SHA-256 |
-| Logging | JSONL append-only audit logs |
-| Governance | Intent contracts, tool gate, control-flow integrity |
-| Observability | Real-time dashboards, proof explorer, audit analytics |
+The orchestration layer enables session-level governance tracking.
+
+- **Session orchestration** manages proposals and governance state.
+- **Proposal analytics** surface blocked actions and policy enforcement decisions.
+- **Orchestration Monitor** visualizes session-level execution and proposal lineage.
+- **Runtime policy enforcement** maintains consistent governance across AI workflows.
+
+---
+
+## Governed Execution Console
+
+The Governed Execution Console is the controlled execution interface for AI actions.
+
+It supports governance profiles that constrain execution behavior and enforce runtime policies.
+
+### Governance Profiles
+- **SAFE_DEFAULT**: standard mode permitting safe tools and blocking forbidden actions.
+- **READ_ONLY**: observation-only mode where execution is disabled.
+- **STRICT_GOVERNANCE**: the strictest enforcement mode with only proof-verified actions allowed.
+- **FINANCIAL_SAFE_MODE**: proof-backed financial operations with limited tool access.
+
+---
+
+## Threat Detection and Proof Observability
+
+NIYAM-AI combines threat analytics with proof transparency.
+
+- **Threat detection** surfaces blocked actions and suspicious tool requests.
+- **Proof observability** exposes proof metadata, witness details, and verification outcomes.
+- **Audit analysis** enables forensics on governance decisions and runtime behavior.
+
+---
+
+## Frontend Architecture
+
+The Streamlit frontend is organized as a modular multipage dashboard.
+
+### Main Pages
+
+- Home Dashboard
+- Live Monitor
+- Threat Analytics
+- Proof Explorer
+- Audit Logs
+- Architecture
+- About
+- Contact
+- Orchestration Monitor
+- Governed Execution Console
+
+### Supporting Code
+
+- `frontend/utils/chart_theme.py` — plot styling and dark theme.
+- `frontend/utils/audit_parser.py` — audit log parsing.
+- `frontend/utils/proof_reader.py` — proof metadata extraction.
+- `frontend/components/cards.py` — reusable Streamlit UI cards.
 
 ---
 
@@ -247,6 +256,12 @@ NIYAM-AI/
 │       ├── dataset_generator.py
 │       ├── train_model.py
 │       └── build_onnx.py
+├── schema/orchestration/
+│   ├── controller.py
+│   ├── execution_runtime.py
+│   ├── proposal.py
+│   ├── secure_planner.py
+│   └── tool_registry.py
 └── frontend/
     ├── Home.py
     ├── pages/
@@ -256,7 +271,9 @@ NIYAM-AI/
     │   ├── 4_Audit_Logs.py
     │   ├── 5_Architecture.py
     │   ├── 6_About.py
-    │   └── 7_Contact.py
+    │   ├── 7_Contact.py
+    │   ├── 8_Orchestration_Monitor.py
+    │   └── 9_Governed_Execution.py
     ├── components/
     │   └── cards.py
     ├── utils/
@@ -280,6 +297,7 @@ NIYAM-AI/
 
 ```bash
 git clone https://github.com/Omkarkele2006/NIYAM-AI.git
+git checkout main
 cd NIYAM-AI
 ```
 
@@ -301,138 +319,124 @@ source venv/bin/activate
 
 ### 3. Install Dependencies
 
-If a `requirements.txt` file is added:
+If a `requirements.txt` file exists:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Otherwise, install the core dependencies used by the current prototype:
+Otherwise install the core prototype dependencies:
 
 ```bash
 pip install streamlit plotly pandas pydantic jsonschema torch onnx scikit-learn
 ```
 
-EZKL must also be available in the runtime environment for proof generation and verification commands.
+> EZKL must also be available in the runtime environment to support proof generation and verification.
 
 ---
 
 ## Running the Streamlit Dashboard
 
-Run the multipage frontend:
+Launch the frontend with:
 
 ```bash
 streamlit run frontend/Home.py
 ```
 
-Then open the local Streamlit URL shown in the terminal.
+Then open the local Streamlit URL shown in your terminal.
 
-Typical pages:
+### Available Pages
 
-- `Home`
-- `Live Monitor`
-- `Threat Analytics`
-- `Proof Explorer`
-- `Audit Logs`
-- `Architecture`
-- `About`
-- `Contact`
+- Home Dashboard
+- Live Monitor
+- Threat Analytics
+- Proof Explorer
+- Audit Logs
+- Architecture
+- About
+- Contact
+- Orchestration Monitor
+- Governed Execution Console
 
 ---
 
 ## Running the Governance Demo
 
-The current backend demo can be executed with:
+Execute the demo script:
 
 ```bash
 python test_phase2.py
 ```
 
-This runs governed action simulations, updates audit logs, and interacts with the proof pipeline where the local EZKL environment is available.
+This runs governed action simulations, updates audit logs, and exercises the zkML proof pipeline.
 
 ---
 
-## Governance Workflow
+## Demo Workflow
 
-At runtime, a governed action flows through:
-
-```text
-schema/interceptor.py
-  -> schema/action_hash.py
-  -> schema/control_flow.py
-  -> schema/tool_gate.py
-  -> schema/ml/feature_extractor.py
-  -> schema/zk_prover.py
-  -> schema/verifier.py
-  -> schema/audit_logger.py
-```
-
-The Streamlit frontend should interact with backend state through:
-
-```text
-schema/governance_service.py
-```
-
-Frontend data utilities:
-
-```text
-frontend/utils/audit_parser.py
-frontend/utils/proof_reader.py
-frontend/utils/chart_theme.py
-```
-
-This keeps the dashboard decoupled from low-level security and proof-generation internals.
+1. Open the Streamlit dashboard.
+2. Inspect governance health on the **Home Dashboard**.
+3. Use the **Governed Execution Console** to submit prompts under different profiles.
+4. Monitor enforcement decisions in **Live Monitor**.
+5. Inspect proof and witness artifacts in **Proof Explorer**.
+6. Search audit records in **Audit Logs**.
+7. Review proposals in **Orchestration Monitor**.
+8. Analyze blocked actions in **Threat Analytics**.
 
 ---
 
-## Screenshots
+## Testing and Validation
 
-Add screenshots here after final UI capture.
+### Functional Testing
+- Verify each frontend page loads and renders correctly.
+- Validate profile-driven execution and governance block behavior.
 
-### Home Dashboard
+### Security Testing
+- Ensure unauthorized tool actions are blocked.
+- Confirm control-flow enforcement rejects invalid sequences.
+- Validate audit records are created for every governance decision.
 
-```text
-screenshots/home_dashboard.png
-```
+### Governance Validation
+- Check IntentHash and ActionHash consistency.
+- Confirm altered requests produce different hashes.
+- Validate append-only audit log behavior.
 
-### Live Monitor
+### Proof Verification Testing
+- Confirm generated proofs verify successfully against the verification key.
+- Validate SHA-256 integrity checks for the verification key.
 
-```text
-screenshots/live_monitor.png
-```
+### UI Testing
+- Confirm chart rendering and dashboard layout.
+- Validate timestamp formatting and proof status indicators.
 
-### Threat Analytics
+### Negative Testing
+- Submit blocked requests and verify safe failure behavior.
+- Validate read-only mode prevents execution.
+- Test malformed payloads for safe rejection.
 
-```text
-screenshots/threat_analytics.png
-```
+---
 
-### Proof Explorer
+## Current Prototype Scope
 
-```text
-screenshots/proof_explorer.png
-```
+NIYAM-AI currently demonstrates:
+- governance-aware orchestration
+- proof-aware execution flow
+- cryptographic integrity checks
+- tamper-evident audit logging
+- frontend observability
 
-### Audit Logs
-
-```text
-screenshots/audit_logs.png
-```
+The current prototype is not a decentralized blockchain system and does not claim absolute immutability. Instead, it focuses on cryptographically verifiable governance and tamper detection within a controlled execution environment.
 
 ---
 
 ## Future Roadmap
 
-- Blockchain verifier integration.
-- Smart contract based proof verification.
-- Decentralized governance audit anchoring.
-- Multi-agent governance sessions.
-- Cloud-scale deployment of proof and monitoring services.
-- Stronger model calibration and threat datasets.
-- Proof-linked audit log explorer.
-- Enterprise SIEM and compliance integrations.
-- Role-based dashboard access.
+- Blockchain anchoring is a future scope item and is not part of the current prototype.
+- Enterprise-grade proof verification and compliance integration.
 - Policy authoring interface for intent contracts.
+- Multi-agent governance sessions and risk-aware orchestration.
+- SIEM integration and audit-ready reporting.
+- Stronger proof-system calibration and threat dataset enrichment.
 
 ---
 
@@ -465,9 +469,8 @@ SY CS F18
 
 ## License and Future Work
 
-This repository is currently presented as an academic research and engineering prototype for EDI evaluation, technical demonstration, and continued development.
+This repository is presented as an academic research and engineering prototype for EDI evaluation and technical demonstration.
 
-A formal open-source license can be added before public reuse or external contribution.
+A formal open-source license may be added prior to public reuse or external contribution.
 
-Future work will focus on stronger proof-system integration, decentralized verification, enterprise deployment patterns, improved governance datasets, and production-grade audit integrity.
-
+Future work will focus on stronger proof-system integration, decentralized verification, enterprise deployment patterns, improved governance datasets, and audit integrity.

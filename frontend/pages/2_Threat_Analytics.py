@@ -26,6 +26,7 @@ from utils.audit_parser import (
     get_verification_statistics,
 )
 from utils.theme import configure_page, load_global_css, section_title
+from utils.time_utils import format_timestamp_table
 
 
 def _rows_from_counts(counts: Counter[str]) -> list[dict[str, Any]]:
@@ -243,7 +244,7 @@ section_title("RECENT THREAT ACTIVITY")
 if recent_threats:
     threat_rows = [
         {
-            "timestamp": row.get("timestamp"),
+            "timestamp": format_timestamp_table(row.get("timestamp")),
             "tool": row.get("tool_name"),
             "reason": row.get("reason", "-"),
             "session": _short_hash(row.get("session_id")),

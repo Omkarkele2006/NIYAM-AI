@@ -32,33 +32,12 @@ from utils.proof_reader import (
     get_witness_artifact,
 )
 from utils.theme import configure_page, load_global_css, section_title
-
-
-def _parse_timestamp(value: str | None) -> datetime | None:
-    """Parse audit timestamps into UTC datetimes."""
-
-    if not value:
-        return None
-
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-
-    return parsed.astimezone(timezone.utc)
+from utils.time_utils import format_timestamp_short, parse_utc_timestamp
 
 
 def _format_timestamp(value: str | None) -> str:
-    """Format timestamps for realtime event cards."""
-
-    parsed = _parse_timestamp(value)
-    if parsed is None:
-        return "-"
-
-    return parsed.strftime("%H:%M:%S UTC")
+    """Format timestamps for realtime event cards in IST."""
+    return format_timestamp_short(value)
 
 
 def _short_value(value: str | None, length: int = 12) -> str:
@@ -344,7 +323,7 @@ with refresh_col2:
     )
 
 with refresh_col3:
-    st.caption(f"Last rendered at {datetime.now(timezone.utc).strftime('%H:%M:%S UTC')}")
+    st.caption("Last rendered at 📡")
 
 if auto_refresh:
     st.markdown(

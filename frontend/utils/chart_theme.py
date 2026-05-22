@@ -112,7 +112,7 @@ def apply_cyber_theme(fig: go.Figure, *, height: int | None = None) -> go.Figure
         zeroline=False,
         linecolor=AXIS_COLOR,
         tickfont={"color": TEXT_SECONDARY},
-        titlefont={"color": TEXT_SECONDARY},
+        title_font={"color": TEXT_SECONDARY},
     )
     fig.update_yaxes(
         showgrid=True,
@@ -120,7 +120,7 @@ def apply_cyber_theme(fig: go.Figure, *, height: int | None = None) -> go.Figure
         zeroline=False,
         linecolor=AXIS_COLOR,
         tickfont={"color": TEXT_SECONDARY},
-        titlefont={"color": TEXT_SECONDARY},
+        title_font={"color": TEXT_SECONDARY},
     )
 
     return fig

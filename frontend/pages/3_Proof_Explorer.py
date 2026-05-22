@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sys
 from collections import Counter
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -28,23 +27,10 @@ from utils.proof_reader import (
     get_witness_artifact,
 )
 from utils.theme import configure_page, load_global_css, section_title
+from utils.time_utils import format_timestamp_table, parse_utc_timestamp
 
 
-def _parse_timestamp(value: str | None) -> datetime | None:
-    """Parse audit timestamps into UTC datetimes."""
 
-    if not value:
-        return None
-
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-
-    return parsed.astimezone(timezone.utc)
 
 
 def _format_bytes(size: int | None) -> str:
@@ -275,18 +261,18 @@ section_title("PROOF EXECUTION TIMELINE")
 
 timeline_rows = [
     {
-        "timestamp": _parse_timestamp(row.get("timestamp")),
+        "timestamp": parse_utc_timestamp(row.get("timestamp")),
         "verification": _verification_label(row),
         "tool": row.get("tool_name", "unknown"),
     }
     for row in proof_events
-    if _parse_timestamp(row.get("timestamp")) is not None
+    if parse_utc_timestamp(row.get("timestamp")) is not None
 ]
 
 if timeline_rows:
     timeline_counts = Counter(
         (
-            row["timestamp"].strftime("%Y-%m-%d %H:%M"),
+            format_timestamp_table(row.get("timestamp")).replace(" IST", ""),
             row["verification"],
         )
         for row in timeline_rows

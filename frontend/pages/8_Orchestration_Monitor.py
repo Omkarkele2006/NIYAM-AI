@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import sys
 from collections import Counter
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +45,7 @@ from utils.orchestration_parser import (
     get_session_proposals,
 )
 from utils.theme import configure_page, load_global_css, section_title
+from utils.time_utils import format_timestamp_short, format_timestamp_table
 
 
 # ---------------------------------------------------------------------------
@@ -60,29 +60,13 @@ def _short_id(value: str | None, length: int = 14) -> str:
 
 
 def _format_ts(value: str | None) -> str:
-    """Format an ISO timestamp to HH:MM:SS UTC for event cards."""
-    if not value or value == "-":
-        return "-"
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed.strftime("%H:%M:%S UTC")
-    except ValueError:
-        return value
+    """Format an ISO timestamp to HH:MM AM/PM IST for event cards."""
+    return format_timestamp_short(value)
 
 
 def _format_ts_full(value: str | None) -> str:
-    """Format an ISO timestamp to YYYY-MM-DD HH:MM:SS UTC for tables."""
-    if not value or value == "-":
-        return "-"
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed.strftime("%Y-%m-%d %H:%M:%S UTC")
-    except ValueError:
-        return value
+    """Format an ISO timestamp to YYYY-MM-DD HH:MM IST for tables."""
+    return format_timestamp_table(value)
 
 
 def _status_color(status: str | None) -> str:
