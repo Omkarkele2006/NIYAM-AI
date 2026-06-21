@@ -209,3 +209,54 @@ The repository exposes a first-class security capability `verify_chain()` that i
 
 ### 4. Migration Strategy
 To transition from prototype jsonl files, the [migrate_jsonl_to_sqlite.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/migrate_jsonl_to_sqlite.py) utility parses the legacy `audit_log.jsonl` database, preserves all original timestamps and signatures exactly, and populates the SQLite tables. It flags syntax errors or structural anomalies without losing history.
+
+---
+
+## zkML Security Layer & Proof Lifecycle
+
+NIYAM-AI verifies tool execution inputs using zero-knowledge Machine Learning (zkML). Since the model validation and proof pipeline are critical security subsystems, they are backed by a structured proof lifecycle state machine and strict fail-closed enforcement rules.
+
+### 1. Proof State Machine (FSM)
+The lifecycle of a single zkML proof and witness is managed as a finite state machine (FSM) using the `ProofState` states:
+
+```mermaid
+stateDiagram-v2
+    [*] --> PROOF_PENDING
+    
+    PROOF_PENDING --> PROOF_GENERATING : Start proving
+    PROOF_PENDING --> PROOF_FAILED : Write/file system failure
+    PROOF_PENDING --> PROOF_MISSING : missing circuit/inputs
+    PROOF_PENDING --> PROOF_INVALID : Malformed parameters
+
+    PROOF_GENERATING --> PROOF_GENERATED : ezkl gen-witness + prove success
+    PROOF_GENERATING --> PROOF_FAILED : subprocess crash/timeout
+
+    PROOF_GENERATED --> PROOF_VERIFYING : Start verification
+    PROOF_GENERATED --> PROOF_FAILED : File read/write failure
+
+    PROOF_VERIFYING --> PROOF_VERIFIED : ezkl verify success
+    PROOF_VERIFYING --> PROOF_FAILED : verify execution crash/timeout
+    PROOF_VERIFYING --> PROOF_INVALID : invalid structure/VK signature mismatch
+    PROOF_VERIFYING --> PROOF_MISSING : proof/witness file missing
+
+    PROOF_VERIFIED --> [*]
+    PROOF_FAILED --> [*]
+    PROOF_INVALID --> [*]
+    PROOF_MISSING --> [*]
+```
+
+### 2. Fail-Closed Execution Policy
+To ensure that "No Valid Proof, No Execution" is strictly enforced, the interceptor and runtime implement fail-closed policies across multiple boundary conditions:
+*   **Startup Validation**: During application/module startup, `validate_proof_environment()` runs checks on the environment before any execution can begin. If:
+    1.  The `ezkl` binary utility is not available or executable in the system path,
+    2.  Any required artifact file (`model.onnx`, `circuit.ezkl`, `settings.json`, `vk.key`, `pk.key`, `kzg.srs`) is missing or unreadable,
+    3.  The cryptographic hash of `vk.key` does not match the hardcoded `TRUSTED_VK_HASH` value,
+    The system shifts into `PROOF_ENVIRONMENT_INVALID` state, logs the failure, and **blocks all future tool executions** from starting.
+*   **Structural Verification**: Before running cryptographic verification, `validate_proof_artifacts()` parses the JSON structure of both `proof.json` and `witness.json` to verify essential keys (like `instances`, `proof`, `inputs`, `outputs`) and rejects any malformed payload formats immediately, preventing potential parser vulnerabilities in the `ezkl` binary.
+*   **Subprocess Environment Failures**: If subprocess invocations for `ezkl gen-witness` or `ezkl prove` crash or raise execution exceptions (e.g. out of memory, file access limits), the system immediately deletes any partially written or stale artifacts (like partial `witness.json` or `proof.json`) and halts execution.
+
+### 3. Component Trust Boundaries
+The following trust boundaries define how components rely on or verify each other:
+1.  **Interceptor (PEP) -> Prover/Verifier**: The Interceptor treats the Prover and Verifier as untrusted runtime boundaries that could fail or yield invalid states. It wraps proving/verification calls, checks for validity reports, and enforces a default-deny block if any step is bypassed.
+2.  **Verifier -> Host System (EZKL)**: The Verifier executes the `ezkl` CLI as a separate process. Before running the binary, the Verifier validates the structural inputs and verifies the checksum hash of the Verification Key (`vk.key`) to guarantee the binary is executing verification against the authentic compiled model constraints, rather than an arbitrary mock key.
+3.  **Governance Service -> Interceptor**: Streamlit dashboard interfaces query metrics and load logs through the `GovernanceService` layer, separating UI rendering code from internal verification, cryptographic state checking, and database transaction lifecycles.

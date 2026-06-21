@@ -272,3 +272,12 @@ def get_system_metrics() -> dict[str, Any]:
         },
     }
 
+
+@st.cache_data(ttl=5, show_spinner=False)
+def get_zkml_metrics() -> dict[str, Any]:
+    """
+    Query and return zkML pipeline health and latency metrics.
+    """
+    repo = AuditRepository()
+    return repo.get_zkml_metrics()
+

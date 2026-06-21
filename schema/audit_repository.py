@@ -287,3 +287,55 @@ class AuditRepository:
             "broken_links": broken_links,
             "anomalies": anomalies
         }
+
+    def get_zkml_metrics(self) -> Dict[str, Any]:
+        """
+        Aggregate and compute health metrics of the ZK proof lifecycle.
+        Reads all PROOF_ lifecycle events to evaluate success rates and average latencies.
+        """
+        with self._get_connection() as conn:
+            rows = conn.execute(
+                "SELECT event_type, raw_data FROM audit_events WHERE event_type LIKE 'PROOF_%'"
+            ).fetchall()
+            
+        gen_success = 0
+        gen_failed = 0
+        ver_success = 0
+        ver_failed = 0
+        
+        gen_latencies = []
+        ver_latencies = []
+        
+        for row in rows:
+            event_type = row["event_type"]
+            try:
+                data = json.loads(row["raw_data"])
+            except Exception:
+                continue
+                
+            if event_type == "PROOF_GENERATION_COMPLETED":
+                gen_success += 1
+                dur = data.get("generation_duration_ms")
+                if dur is not None:
+                    gen_latencies.append(dur)
+            elif event_type == "PROOF_GENERATION_FAILED":
+                gen_failed += 1
+            elif event_type == "PROOF_VERIFICATION_COMPLETED":
+                ver_success += 1
+                dur = data.get("verification_duration_ms")
+                if dur is not None:
+                    ver_latencies.append(dur)
+            elif event_type == "PROOF_VERIFICATION_FAILED":
+                ver_failed += 1
+                
+        avg_gen = sum(gen_latencies) / len(gen_latencies) if gen_latencies else 0.0
+        avg_ver = sum(ver_latencies) / len(ver_latencies) if ver_latencies else 0.0
+        
+        return {
+            "proof_success_count": gen_success,
+            "proof_failure_count": gen_failed,
+            "verification_success_count": ver_success,
+            "verification_failure_count": ver_failed,
+            "average_proof_latency_ms": avg_gen,
+            "average_verification_latency_ms": avg_ver
+        }
