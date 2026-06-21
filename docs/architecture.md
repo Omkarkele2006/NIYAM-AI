@@ -63,10 +63,10 @@ Prompt
     *   **Timeout Handling**: Runs executions inside the Process Isolation Layer (`SubprocessSandboxExecutor`), allowing clean process termination to prevent zombie execution loops.
     *   **Failsafe Cleanups**: Triggers custom, tool-specific rollback routines in case of timeouts, execution termination, or execution errors.
 
-### 7. Audit Logger
-*   **File Location**: [audit_logger.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/schema/audit_logger.py)
-*   **Description**: Writes structured execution and interception records to an append-only JSONLines database (`audit_log.jsonl`).
-*   **Hash Chaining**: Implements a cryptographic chain where each entry logs the hash of the preceding line. On startup, it reads the last valid line to resume the chain, guaranteeing chronological logging and detecting deletion or tampering.
+### 7. Audit Logger & SQLite Backend
+*   **File Location**: [audit_logger.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/schema/audit_logger.py) and [audit_repository.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/schema/audit_repository.py)
+*   **Description**: Writes structured execution and interception records to an index-optimized SQLite database (`audit.db`) through the `AuditRepository` pattern. Maintains a backward-compatible double-write append-only JSONLines file (`audit_log.jsonl`).
+*   **Hash Chaining & Tamper-Evidence**: Implements a cryptographic hash chain mapping `prev_hash` and `current_hash` (aliased as `log_hash`) across application restarts, allowing automated integrity verification and tampering detection.
 
 ---
 
@@ -165,4 +165,47 @@ While the current Process Isolation Layer isolates memory and enables timeout te
 *   **Future Opportunities for Stronger Sandboxing**:
     *   *Virtualization*: Packaging tools in gVisor, WebAssembly (Wasm) runtimes, or MicroVMs (e.g., Firecracker) to restrict access to network, system calls, and the filesystem.
     *   *Subprocess Jail/Chroot*: Confining process filesystem root directories and running under unprivileged system users.
-    *   *Serialization Upgrades*: Utilizing serialization frameworks like `dill` or `pathos` to decrease pickling failures.
+    *   **Serialization Upgrades**: Utilizing serialization frameworks like `dill` or `pathos` to decrease pickling failures.
+
+---
+
+## Audit Layer & SQLite Backend
+
+To resolve the query limitations, linear scans, and performance bottlenecks of prototype JSONLines logs, NIYAM-AI implements a secure, database-backed **Audit Layer** designed around the **Audit Repository Pattern**.
+
+```mermaid
+graph TD
+    UI[Frontend Streamlit View] --> GS[schema/governance_service.py]
+    GS --> AR[schema/audit_repository.py - AuditRepository]
+    IP[Interceptor / PEP] --> AL[schema/audit_logger.py - log_event]
+    AL --> AR
+    AR --> DB[(SQLite Database - audit.db)]
+```
+
+### 1. Audit Repository Pattern
+All database interactions are centralized inside the `AuditRepository` class (located in [audit_repository.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/schema/audit_repository.py)). The rest of the application (e.g. frontend pages, metrics calculators, and logging gates) delegates queries and write calls directly to this class, preventing database logic leakage and SQL injection vulnerabilities.
+
+### 2. Tamper-Evident Hash Chain
+To ensure governance transparency and detect unauthorized modifications, the audit system creates a cryptographic ledger mapping each row to the preceding event:
+
+```text
+Event N-1
+  └── [current_hash]
+          │
+          ▼  (linked as)
+Event N
+  ├── [prev_hash] = Event N-1 current_hash
+  └── [current_hash] = SHA-256(prev_hash + JSON_payload(Event N))
+```
+
+* **Genesis Link**: When a new chain sequence begins, the `prev_hash` is initialized to `"0"`.
+* **Hash Recalculation**: During verification, the system serializes each database record back into a dictionary (omitting database metadata such as `event_id` and the signature keys themselves), prepends the `prev_hash`, and recomputes the SHA-256 hash.
+
+### 3. Chain Integrity Verification
+The repository exposes a first-class security capability `verify_chain()` that inspects all events sequentially to validate:
+1. **Chain Continuity**: Asserts that `event[n].current_hash` exactly matches `event[n+1].prev_hash`.
+2. **Record Authenticity**: Independently recalculates the hash signature of each payload to detect single-record modifications or tampering.
+3. **Anomalies Detection**: Reports deleted entries (missing links) and invalid hashes.
+
+### 4. Migration Strategy
+To transition from prototype jsonl files, the [migrate_jsonl_to_sqlite.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/migrate_jsonl_to_sqlite.py) utility parses the legacy `audit_log.jsonl` database, preserves all original timestamps and signatures exactly, and populates the SQLite tables. It flags syntax errors or structural anomalies without losing history.

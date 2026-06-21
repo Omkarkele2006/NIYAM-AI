@@ -22,6 +22,7 @@ import streamlit as st
 
 from schema.interceptor import InterceptionBlocked, intercept_execution
 from schema.verifier import verify_proof
+from schema.audit_repository import AuditRepository
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -171,41 +172,16 @@ def load_audit_logs(
     log_path: Path = AUDIT_LOG_PATH,
 ) -> list[dict[str, Any]]:
     """
-    Load audit log records from the append-only JSONL log.
-
-    Cached with a 5-second TTL so that repeated calls within a single
-    Streamlit render cycle (6-8 calls per page) share one JSONL read
-    instead of re-opening the file each time.  The short TTL keeps the
-    live monitor and audit pages responsive to new governance events.
-
-    Invalid or empty lines are skipped so the frontend can keep rendering
-    even if a partial write appears during a live run.
+    Load audit log records from the SQLite database.
     """
+    # Map legacy audit_log.jsonl path to default SQLite database
+    if str(log_path).endswith("audit_log.jsonl") or str(log_path).endswith("audit.db") or str(log_path).endswith("audit_log.db"):
+        db_path = str(REPO_ROOT / "audit.db")
+    else:
+        db_path = str(log_path).replace(".jsonl", ".db")
 
-    path = Path(log_path)
-    if not path.exists():
-        return []
-
-    records: list[dict[str, Any]] = []
-
-    with path.open("r", encoding="utf-8") as file:
-        for line in file:
-            line = line.strip()
-            if not line:
-                continue
-
-            try:
-                record = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-
-            if status is None or record.get("status") == status:
-                records.append(record)
-
-    if limit is not None and limit >= 0:
-        return records[-limit:]
-
-    return records
+    repo = AuditRepository(db_path)
+    return repo.fetch_events(limit=limit, status=status)
 
 
 def load_latest_proof(proof_path: Path = PROOF_PATH) -> dict[str, Any]:
@@ -280,38 +256,13 @@ def verify_proof_status(proof_path: Path = PROOF_PATH) -> dict[str, Any]:
 @st.cache_data(ttl=5, show_spinner=False)
 def get_system_metrics() -> dict[str, Any]:
     """
-    Compute high-level governance metrics for dashboard pages.
-
-    Cached with a 5-second TTL — this function is called from both Home.py
-    and 1_Live_Monitor.py on every render.  The cache prevents duplicate
-    audit-log reads and list-comprehension passes within the same cycle.
-
-    Metrics are derived from audit logs and root-level artifacts only; no
-    proof generation, model execution, or verification is triggered here.
+    Compute high-level governance metrics for dashboard pages from the SQLite database.
     """
-
-    logs = load_audit_logs()
-    executed = [row for row in logs if row.get("status") == "EXECUTED"]
-    blocked  = [row for row in logs if row.get("status") == "BLOCKED"]
-    errors   = [row for row in logs if row.get("status") == "ERROR"]
-    verified = [row for row in logs if row.get("verification") is True]
-
-    latest_record = logs[-1] if logs else None
-    unique_sessions = {
-        row.get("session_id")
-        for row in logs
-        if row.get("session_id")
-    }
+    repo = AuditRepository()
+    metrics = repo.count_metrics()
 
     return {
-        "total_actions":    len(logs),
-        "executed_actions": len(executed),
-        "blocked_actions":  len(blocked),
-        "error_actions":    len(errors),
-        "verified_proofs":  len(verified),
-        "unique_sessions":  len(unique_sessions),
-        "latest_record":    latest_record,
-        "latest_timestamp": latest_record.get("timestamp") if latest_record else None,
+        **metrics,
         "artifacts": {
             "proof":            _artifact_summary(PROOF_PATH),
             "witness":          _artifact_summary(WITNESS_PATH),
