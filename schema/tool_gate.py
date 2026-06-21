@@ -6,14 +6,20 @@ class GovernanceValidationError(Exception):
     Exception raised when a tool execution fails policy allowlist or payload schema checks.
     Outputs failure details as a structured JSON string.
     """
-    def __init__(self, tool: str, reason: str):
+    def __init__(self, tool: str, reason: str, policy: str | None = None, rule: str | None = None):
         self.tool = tool
         self.reason = reason
+        self.policy = policy
+        self.rule = rule
         self.details = {
             "tool": tool,
             "status": "BLOCKED",
             "reason": reason
         }
+        if policy:
+            self.details["policy"] = policy
+        if rule:
+            self.details["rule"] = rule
         super().__init__(json.dumps(self.details))
 
 
@@ -142,16 +148,31 @@ class ToolAuthorityGate:
         """
         Asserts that a tool is explicitly permitted by the active IntentContract.
         """
+        policy_str = None
+        if hasattr(self.contracts, "policy_id") and self.contracts.policy_id:
+            version_suffix = f"_v{self.contracts.policy_version}" if self.contracts.policy_version else ""
+            policy_str = f"{self.contracts.policy_id}{version_suffix}"
+
         if tool_name in self.contracts.forbidden_tools:
+            reason = f"Tool '{tool_name}' is explicitly forbidden by contract"
+            if policy_str:
+                reason = f"Tool '{tool_name}' forbidden by active policy '{policy_str}'"
             raise GovernanceValidationError(
                 tool=tool_name,
-                reason=f"Tool '{tool_name}' is explicitly forbidden by contract"
+                reason=reason,
+                policy=policy_str,
+                rule="forbidden_tools"
             )
             
         if tool_name not in self.contracts.allowed_tools:
+            reason = f"Tool '{tool_name}' is not allowed by contract intent"
+            if policy_str:
+                reason = f"Tool '{tool_name}' not allowed by active policy '{policy_str}'"
             raise GovernanceValidationError(
                 tool=tool_name,
-                reason=f"Tool '{tool_name}' is not allowed by contract intent"
+                reason=reason,
+                policy=policy_str,
+                rule="allowed_tools"
             )
 
         print("Tool authorization validation succeeded")
@@ -162,10 +183,17 @@ class ToolAuthorityGate:
         Asserts that a tool's payload matches its registered schema parameters.
         Rejects calls by default if no schema is configured.
         """
+        policy_str = None
+        if hasattr(self.contracts, "policy_id") and self.contracts.policy_id:
+            version_suffix = f"_v{self.contracts.policy_version}" if self.contracts.policy_version else ""
+            policy_str = f"{self.contracts.policy_id}{version_suffix}"
+
         if tool_name not in SCHEMAS:
             raise GovernanceValidationError(
                 tool=tool_name,
-                reason=f"Schema validation rejected: No registered schema for tool '{tool_name}'"
+                reason=f"Schema validation rejected: No registered schema for tool '{tool_name}'",
+                policy=policy_str,
+                rule="schema_validation"
             )
 
         schema = SCHEMAS[tool_name]
@@ -174,7 +202,9 @@ class ToolAuthorityGate:
         except jsonschema.exceptions.ValidationError as e:
             raise GovernanceValidationError(
                 tool=tool_name,
-                reason=f"Schema validation failed: {e.message}"
+                reason=f"Schema validation failed: {e.message}",
+                policy=policy_str,
+                rule="schema_validation"
             )
 
         print("Tool schema validation succeeded")

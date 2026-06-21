@@ -12,6 +12,8 @@ class IntentContract(BaseModel):
     user_task: str
     allowed_tools: List[str]
     forbidden_tools: List[str]
+    policy_id: str | None = None
+    policy_version: str | None = None
 
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
 

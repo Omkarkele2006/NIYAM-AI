@@ -1,0 +1,18 @@
+{
+  "policy_id": "finance_policy",
+  "version": "1.0.0",
+  "status": "active",
+  "created_at": "2026-06-21T16:00:00Z",
+  "description": "Financial operations policy defining transaction tool capabilities.",
+  "allowed_tools": [
+    "proceed_transaction"
+  ],
+  "forbidden_tools": [
+    "send_email",
+    "delete_file"
+  ],
+  "constraints": {},
+  "metadata": {
+    "author": "Security Architect"
+  }
+}

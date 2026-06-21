@@ -260,3 +260,83 @@ The following trust boundaries define how components rely on or verify each othe
 1.  **Interceptor (PEP) -> Prover/Verifier**: The Interceptor treats the Prover and Verifier as untrusted runtime boundaries that could fail or yield invalid states. It wraps proving/verification calls, checks for validity reports, and enforces a default-deny block if any step is bypassed.
 2.  **Verifier -> Host System (EZKL)**: The Verifier executes the `ezkl` CLI as a separate process. Before running the binary, the Verifier validates the structural inputs and verifies the checksum hash of the Verification Key (`vk.key`) to guarantee the binary is executing verification against the authentic compiled model constraints, rather than an arbitrary mock key.
 3.  **Governance Service -> Interceptor**: Streamlit dashboard interfaces query metrics and load logs through the `GovernanceService` layer, separating UI rendering code from internal verification, cryptographic state checking, and database transaction lifecycles.
+
+---
+
+## Governance Policy Layer
+
+NIYAM-AI elevates `IntentContract` enforcement into a managed **Governance Policy System**, treating policies as versioned, auditable, and immutable JSON schema artifacts.
+
+```mermaid
+graph TD
+    PR[PolicyRepository] -->|Loads JSON| P[Policy Object]
+    P -->|Instantiates| IC[IntentContract]
+    IC -->|Enforces constraints| PEP[Interceptor]
+    PEP -->|Logs violations| AL[Audit Logger]
+    AL -->|Writes to| SQLite[(SQLite Database - audit.db)]
+```
+
+### 1. Policy Schema & Validation
+Policies are stored as JSON files under the `policies/` directory. The structure is defined as follows:
+*   `policy_id` (string): Unique identifier for the policy.
+*   `version` (string): Semantic version of the policy (e.g. `1.0.0`, `1.1.0`).
+*   `status` (string): Execution status (`active`, `inactive`, `draft`).
+*   `created_at` (string): ISO-8601 creation date.
+*   `description` (string): Human-readable explanation of policy constraints.
+*   `allowed_tools` (array): List of permitted tool names.
+*   `forbidden_tools` (array): List of explicitly blocked tool names.
+*   `constraints` (object): Key-value parameters defining schema overrides.
+*   `metadata` (object): Auditing tags (e.g. author name, approval tracking).
+
+The `PolicyValidationEngine` performs pre-persistence validation checks:
+1.  **Duplicate Check**: Rejects any duplicate tool listings within `allowed_tools` or `forbidden_tools`.
+2.  **Conflict Check**: Rejects policies listing the same tool in both allow and deny lists.
+3.  **Registry Validation**: Checks tool references dynamically against registered schemas to ensure only registered tools are declared.
+4.  **Version Pattern Check**: Validates the version matches semantic version formatting (`^\d+\.\d+(\.\d+)?$`).
+
+### 2. Policy Repository
+The `PolicyRepository` acts as the single source of truth for loading, listing, and writing policy artifacts. It guarantees the following behaviors:
+*   **Immutability**: Once a policy version is saved (e.g., `finance_policy_v1.0.0.json`), attempting to overwrite it without an explicit overwrite flag raises a validation error.
+*   **Retrieval**: Resolves active or latest versions, grouping policies by ID and sorting version strings semantically.
+
+### 3. Policy Lifecycle State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft : Create Policy
+    Draft --> Validated : PolicyRepository.validate_policy()
+    Draft --> Rejected : Validation Fail (emit POLICY_REJECTED)
+    Validated --> Inactive : Save to policies/ (emit POLICY_LOADED/VALIDATED)
+    Inactive --> Active : activate_policy_version() (emit POLICY_VERSION_ACTIVATED)
+    Active --> Inactive : deactivate_policy_version() (emit POLICY_VERSION_DEACTIVATED)
+    Active --> Sealed : to_contract() + seal() (emit POLICY_SEALED)
+    Sealed --> [*]
+```
+
+### 4. Version Diffing
+The `PolicyDiffEngine` generates deterministic structured reports comparing two versions of a policy. It outputs:
+*   `added_allowed_tools` and `removed_allowed_tools`
+*   `added_forbidden_tools` and `removed_forbidden_tools`
+*   `changed_status` and `changed_description`
+*   `changed_constraints` (nested dictionary tracking modified, added, or deleted constraints)
+
+### 5. Explainability & Fail-Closed Enforcement
+Whenever an action is blocked by policy guardrails, the raised `GovernanceValidationError` integrates the policy ID and version context. Interception logs and security exception reports identify the specific rule that blocked the action:
+```json
+{
+  "tool": "send_email",
+  "status": "BLOCKED",
+  "reason": "Tool 'send_email' forbidden by active policy 'finance_policy_v1.0.0'",
+  "policy": "finance_policy_v1.0.0",
+  "rule": "forbidden_tools"
+}
+```
+
+### 6. Policy Audit Events
+Policy operations are captured dynamically within the SQLite audit database (`audit.db`):
+1.  `POLICY_LOADED`: Written when a policy JSON is successfully loaded.
+2.  `POLICY_VALIDATED`: Written when structural/logical validations succeed.
+3.  `POLICY_REJECTED`: Written when policy validation fails.
+4.  `POLICY_SEALED`: Written when an `IntentContract` derived from a policy is sealed.
+5.  `POLICY_VERSION_ACTIVATED`: Written when a policy status shifts to `"active"`.
+6.  `POLICY_VERSION_DEACTIVATED`: Written when a policy version is deactivated.

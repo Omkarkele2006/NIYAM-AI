@@ -231,14 +231,25 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
         print("Blocked Action:", tool_name)
         print("Reason:", str(e))
 
+        # Extract explainability details if available
+        policy_val = getattr(e, "policy", None)
+        rule_val = getattr(e, "rule", None)
+        reason_val = getattr(e, "reason", str(e))
+
         # Log event
-        log_event({
+        log_payload = {
             "session_id": contract.session_id,
             "intent_hash": intent_hash,
             "action_hash": action_hash,
             "tool_name": tool_name,
             "status": "BLOCKED",
-            "reason": str(e)
-        })
+            "reason": reason_val
+        }
+        if policy_val:
+            log_payload["policy"] = policy_val
+        if rule_val:
+            log_payload["rule"] = rule_val
+
+        log_event(log_payload)
 
         raise InterceptionBlocked(str(e))

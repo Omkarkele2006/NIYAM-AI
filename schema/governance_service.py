@@ -23,6 +23,8 @@ import streamlit as st
 from schema.interceptor import InterceptionBlocked, intercept_execution
 from schema.verifier import verify_proof
 from schema.audit_repository import AuditRepository
+from schema.audit_logger import log_event
+from schema.policy import Policy, PolicyRepository, compare_versions
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -280,4 +282,108 @@ def get_zkml_metrics() -> dict[str, Any]:
     """
     repo = AuditRepository()
     return repo.get_zkml_metrics()
+
+
+def load_governed_policy(policy_id: str, version: str | None = None, valid_tools: set[str] | None = None) -> Policy:
+    """
+    Load a policy and write validation and load events to the audit database.
+    """
+    repo = PolicyRepository()
+    try:
+        policy = repo.load_policy(policy_id, version, valid_tools=valid_tools)
+        log_event({
+            "event_type": "POLICY_LOADED",
+            "status": "SUCCESS",
+            "policy_id": policy.policy_id,
+            "version": policy.version,
+            "detail": f"Policy '{policy.policy_id}' version '{policy.version}' loaded successfully."
+        })
+        log_event({
+            "event_type": "POLICY_VALIDATED",
+            "status": "SUCCESS",
+            "policy_id": policy.policy_id,
+            "version": policy.version,
+            "detail": f"Policy '{policy.policy_id}' version '{policy.version}' validated successfully."
+        })
+        return policy
+    except Exception as e:
+        log_event({
+            "event_type": "POLICY_REJECTED",
+            "status": "FAILED",
+            "policy_id": policy_id,
+            "version": version or "unknown",
+            "detail": f"Policy load/validation failed: {str(e)}"
+        })
+        raise
+
+
+def seal_policy_contract(contract: Any) -> None:
+    """
+    Seal an IntentContract and emit a POLICY_SEALED governance audit event if policy metadata is present.
+    """
+    contract.seal()
+    if getattr(contract, "policy_id", None):
+        log_event({
+            "session_id": contract.session_id,
+            "event_type": "POLICY_SEALED",
+            "status": "SUCCESS",
+            "policy_id": contract.policy_id,
+            "version": contract.policy_version,
+            "intent_hash": contract.intent_hash(),
+            "detail": f"Contract derived from policy '{contract.policy_id}' version '{contract.policy_version}' sealed successfully."
+        })
+
+
+def activate_policy_version(policy_id: str, version: str, valid_tools: set[str] | None = None) -> Policy:
+    """
+    Activate a specific policy version, automatically deactivating other versions of that policy,
+    and log corresponding transition audit events.
+    """
+    repo = PolicyRepository()
+    # Load and validate first (emits LOADED/VALIDATED)
+    policy = load_governed_policy(policy_id, version, valid_tools=valid_tools)
+
+    # Deactivate other active versions
+    for other in repo.retrieve_versions(policy_id):
+        if other.version != version and other.status == "active":
+            other.status = "inactive"
+            repo.save_policy(other, overwrite=True)
+            log_event({
+                "event_type": "POLICY_VERSION_DEACTIVATED",
+                "status": "SUCCESS",
+                "policy_id": policy_id,
+                "version": other.version,
+                "detail": f"Policy '{policy_id}' version '{other.version}' deactivated."
+            })
+
+    policy.status = "active"
+    repo.save_policy(policy, overwrite=True)
+
+    log_event({
+        "event_type": "POLICY_VERSION_ACTIVATED",
+        "status": "SUCCESS",
+        "policy_id": policy_id,
+        "version": version,
+        "detail": f"Policy '{policy_id}' version '{version}' activated."
+    })
+    return policy
+
+
+def deactivate_policy_version(policy_id: str, version: str) -> Policy:
+    """
+    Deactivate a specific policy version and log a deactivation audit event.
+    """
+    repo = PolicyRepository()
+    policy = repo.load_policy(policy_id, version)
+    if policy.status == "active":
+        policy.status = "inactive"
+        repo.save_policy(policy, overwrite=True)
+        log_event({
+            "event_type": "POLICY_VERSION_DEACTIVATED",
+            "status": "SUCCESS",
+            "policy_id": policy_id,
+            "version": version,
+            "detail": f"Policy '{policy_id}' version '{version}' deactivated."
+        })
+    return policy
 
