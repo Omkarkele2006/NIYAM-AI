@@ -1,9 +1,9 @@
 streamlit==1.45.1
-plotly==6.0.1
-pandas==2.2.3
-numpy==1.26.4
-torch
-onnx
-scikit-learn
-joblib
-matplotlib
+plotly==6.1.2
+pandas==2.3.3
+numpy==2.3.5
+torch==2.10.0
+onnx==1.20.1
+scikit-learn==1.8.0
+joblib==1.5.2
+matplotlib==3.10.1

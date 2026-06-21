@@ -95,4 +95,4 @@ model_onnx = helper.make_model(
 
 onnx.save(model_onnx, "model.onnx")
 
-print("✅ EZKL-compatible ONNX model generated: model.onnx")
+print("EZKL-compatible ONNX model generated: model.onnx")

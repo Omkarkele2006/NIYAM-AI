@@ -131,10 +131,10 @@ for t in [0.5, 0.6, 0.7, 0.8]:
         best_threshold = t
 
 if best_threshold > 0.7:
-    print("\n⚠️ Overriding to 0.7")
+    print("\n Overriding to 0.7")
     best_threshold = 0.7
 
-print(f"\n✅ Final Threshold: {best_threshold}")
+print(f"\nFinal Threshold: {best_threshold}")
 
 # -------------------------
 # FINAL EVALUATION
@@ -190,4 +190,4 @@ torch.onnx.export(
     training=torch.onnx.TrainingMode.EVAL
 )
 
-print("\n✅ Exported model_raw.onnx (FORCED LEGACY MODE)")
+print("\nExported model_raw.onnx (FORCED LEGACY MODE)")

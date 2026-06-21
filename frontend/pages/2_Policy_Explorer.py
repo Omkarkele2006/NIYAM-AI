@@ -63,7 +63,7 @@ with tab1:
             sub_col1, sub_col2 = st.columns(2)
             
             with sub_col1:
-                st.markdown("### Allowed Tools ✅")
+                st.markdown("### Allowed Tools")
                 if selected_policy.allowed_tools:
                     for tool in selected_policy.allowed_tools:
                         st.markdown(f"- `{tool}`")
@@ -71,7 +71,7 @@ with tab1:
                     st.caption("No allowed tools declared")
                     
             with sub_col2:
-                st.markdown("### Forbidden Tools ❌")
+                st.markdown("### Forbidden Tools")
                 if selected_policy.forbidden_tools:
                     for tool in selected_policy.forbidden_tools:
                         st.markdown(f"- `{tool}`")
@@ -84,7 +84,7 @@ with tab1:
             else:
                 st.caption("No constraints configured for this version")
                 
-            st.markdown("### Metadata 🏷️")
+            st.markdown("### Metadata")
             if selected_policy.metadata:
                 st.json(selected_policy.metadata)
             else:
