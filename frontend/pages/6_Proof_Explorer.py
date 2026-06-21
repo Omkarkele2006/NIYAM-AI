@@ -19,6 +19,7 @@ for path in (REPO_ROOT, FRONTEND_ROOT):
 from components.cards import cyber_card, metric_card, status_badge
 from schema.governance_service import get_system_metrics, load_audit_logs, get_zkml_metrics
 from utils.audit_parser import get_verification_statistics
+from schema.proof_lifecycle import validate_proof_environment
 from utils.proof_reader import (
     get_latest_proof_metadata,
     get_proof_artifact_overview,
@@ -94,7 +95,11 @@ proof_events = [
     if row.get("proof") or row.get("verification") is not None
 ]
 
-metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+# Load live environment report for top-level status card
+_live_env = validate_proof_environment()
+_ezkl_ok = _live_env["ezkl_available"]
+
+metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
 
 with metric_col1:
     metric_card(
@@ -122,10 +127,20 @@ with metric_col3:
 
 with metric_col4:
     metric_card(
-        "Verified Records",
+        # Clarified label: these are historical audit DB rows (verification=1),
+        # NOT live ezkl verification results. See 'Proof Status' card for live status.
+        "Historical Verified Events",
         str(verification_stats["verified"]),
-        f"{verification_stats['verification_rate']}% coverage",
+        "Audit DB rows (historical) — not live ezkl results",
         "normal",
+    )
+
+with metric_col5:
+    metric_card(
+        "EZKL Environment",
+        "AVAILABLE" if _ezkl_ok else "UNAVAILABLE",
+        "Live runtime check" if _ezkl_ok else "Fail-closed: executions blocked",
+        "success" if _ezkl_ok else "danger",
     )
 
 st.markdown("<br>", unsafe_allow_html=True)

@@ -100,9 +100,9 @@ with col3:
 with col4:
 
     metric_card(
-        "Verified Proofs",
-        str(metrics["verified_proofs"]),
-        "Cryptographic checks",
+        "Historical Proof Events",
+        str(metrics["historical_verified_proof_events"]),
+        "Audit records with verification=True (see Proof Explorer for live status)",
         "warning"
     )
 

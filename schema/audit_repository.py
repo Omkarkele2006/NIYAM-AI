@@ -209,7 +209,10 @@ class AuditRepository:
             "executed_actions": executed,
             "blocked_actions": blocked,
             "error_actions": errors,
-            "verified_proofs": verified,
+            # Renamed from 'verified_proofs': this counts historical audit DB rows
+            # where verification=1, NOT live ezkl cryptographic verification results.
+            # Use get_zkml_metrics() for live proof pipeline health.
+            "historical_verified_proof_events": verified,
             "unique_sessions": sessions,
             "latest_record": latest_record,
             "latest_timestamp": latest_record.get("timestamp") if latest_record else None
