@@ -1,4 +1,4 @@
-﻿# NIYAM-AI
+# NIYAM-AI
 
 ## Intent-Bound Verifiable AI Governance Platform
 
@@ -226,10 +226,7 @@ The Streamlit frontend is organized as a modular multipage dashboard.
 
 ```text
 NIYAM-AI/
-├── dashboard.py
 ├── main_demo.py
-├── test_phase1.py
-├── test_phase2.py
 ├── audit_log.jsonl
 ├── dataset.csv
 ├── model.pth
@@ -262,6 +259,11 @@ NIYAM-AI/
 │   ├── proposal.py
 │   ├── secure_planner.py
 │   └── tool_registry.py
+├── tests/
+│   ├── test_phase1.py
+│   └── test_phase2.py
+├── docs/
+│   └── architecture.md
 └── frontend/
     ├── Home.py
     ├── pages/

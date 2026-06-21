@@ -42,8 +42,6 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
             contract
         )
 
-        # STEP 4: (OPTIONAL LOCAL CHECK — REMOVE LATER)
-        # You can skip judge.py completely now
 
         # STEP 5: Generate zk proof
         proof_path = generate_proof(features)
@@ -97,8 +95,8 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
 
     except Exception as e:
 
-        # 🚨 ALERT SYSTEM (FR21)
-        print("\n🚨 SECURITY ALERT 🚨")
+        # ALERT SYSTEM (FR21)
+        print("\n[SECURITY ALERT]")
         print("Blocked Action:", tool_name)
         print("Reason:", str(e))
 
