@@ -4,15 +4,16 @@ Governed execution runtime for NIYAM-AI.
 This module wraps the raw ``execute_func`` call (interceptor STEP 7) with:
 
   - Deterministic execution IDs bound to the verified proof
-  - A finite state machine enforcing PENDING → RUNNING → terminal
+  - A finite state machine enforcing PENDING → RUNNING → terminal/TERMINATED
   - Timeout enforcement using ``GovernedToolMetadata.timeout_seconds``
   - Structured ``RuntimeGovernanceEvent`` records replacing print() leaks
   - Optional per-tool cleanup hooks with fail-safe isolation
+  - A Process Isolation Layer containing SandboxExecutor implementations.
 
 Integration point
 -----------------
 The runtime sits **between** interceptor STEP 6 (``verified == True``) and
-STEP 7 (``execute_func(tool_name, payload)``).  It does NOT replace the
+STEP 7 (``execute_func(tool_name, payload)``). It does NOT replace the
 interceptor — it is an execution envelope that strengthens STEP 7 only.
 
 Security invariants
@@ -23,7 +24,6 @@ Security invariants
   - ``InterceptionBlocked`` remains the sole blocking signal — this module
     re-raises ordinary ``Exception`` so the interceptor's existing broad
     ``except`` catches it unchanged.
-  - No subprocess execution.  Timeout uses ``concurrent.futures``.
   - Cleanup hook failures are isolated and never mask execution failures.
 """
 
@@ -32,6 +32,8 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+import multiprocessing
+import pickle
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -59,17 +61,20 @@ class ExecutionState(Enum):
     COMPLETED  = "COMPLETED"
     TIMED_OUT  = "TIMED_OUT"
     FAILED     = "FAILED"
+    TERMINATED = "TERMINATED"
     CLEANED_UP = "CLEANED_UP"
 
 
-# Allowed (source → target) transitions.  All others raise ValueError.
+# Allowed (source → target) transitions. All others raise ValueError.
 _VALID_TRANSITIONS: frozenset[tuple[ExecutionState, ExecutionState]] = frozenset({
-    (ExecutionState.PENDING,   ExecutionState.RUNNING),
-    (ExecutionState.RUNNING,   ExecutionState.COMPLETED),
-    (ExecutionState.RUNNING,   ExecutionState.TIMED_OUT),
-    (ExecutionState.RUNNING,   ExecutionState.FAILED),
-    (ExecutionState.TIMED_OUT, ExecutionState.CLEANED_UP),
-    (ExecutionState.FAILED,    ExecutionState.CLEANED_UP),
+    (ExecutionState.PENDING,    ExecutionState.RUNNING),
+    (ExecutionState.RUNNING,    ExecutionState.COMPLETED),
+    (ExecutionState.RUNNING,    ExecutionState.TIMED_OUT),
+    (ExecutionState.RUNNING,    ExecutionState.FAILED),
+    (ExecutionState.RUNNING,    ExecutionState.TERMINATED),
+    (ExecutionState.TIMED_OUT,  ExecutionState.CLEANED_UP),
+    (ExecutionState.FAILED,     ExecutionState.CLEANED_UP),
+    (ExecutionState.TERMINATED, ExecutionState.CLEANED_UP),
 })
 
 
@@ -119,7 +124,7 @@ class GovernedExecutionContext:
     """Immutable identity of one governed tool execution attempt.
 
     **Hard-fail invariant:** instantiating with ``proof_verified != True``
-    raises ``ValueError`` at ``__post_init__``.  This makes it architecturally
+    raises ``ValueError`` at ``__post_init__``. This makes it architecturally
     impossible to create an execution context without a verified proof.
     """
 
@@ -231,6 +236,120 @@ class GovernedExecutionResult:
 
 
 # ---------------------------------------------------------------------------
+# Process Isolation Layer - Sandbox Executors
+# ---------------------------------------------------------------------------
+
+class BaseSandboxExecutor:
+    """
+    Abstract interface defining execution containment strategies for registered tools.
+    """
+    def execute(self, tool_name: str, payload: dict[str, Any], timeout: int) -> Any:
+        raise NotImplementedError()
+
+
+def _subprocess_worker(pipe: multiprocessing.connection.Connection, execute_func: Callable[[str, dict[str, Any]], Any], tool_name: str, payload: dict[str, Any]):
+    """Target function spawned inside the subprocess containing execute_func execution."""
+    try:
+        res = execute_func(tool_name, payload)
+        pipe.send((True, res))
+    except Exception as exc:
+        pipe.send((False, str(exc)))
+    finally:
+        pipe.close()
+
+
+class SubprocessSandboxExecutor(BaseSandboxExecutor):
+    """
+    Process Isolation Layer Strategy:
+    Runs tool callables inside a separate OS process for memory isolation and containment.
+
+    Why subprocess execution is preferred over thread execution:
+    1. Memory Separation: Subprocess executes in a separate OS memory space, preventing
+       tool code from directly reading or writing parent interpreter state or accessing sealed intent contracts.
+    2. Termination Support: Spawning a separate process allows clean, forceful termination (via .terminate()
+       and .kill()) when timeouts are exceeded. In contrast, Python threads cannot be forcefully killed
+       from the parent thread, which leads to active zombie threads leaking resources in background loops.
+    """
+    def __init__(self, execute_func: Callable[[str, dict[str, Any]], Any]):
+        self.execute_func = execute_func
+
+    def execute(self, tool_name: str, payload: dict[str, Any], timeout: int) -> Any:
+        parent_conn, child_conn = multiprocessing.Pipe()
+        
+        process = multiprocessing.Process(
+            target=_subprocess_worker,
+            args=(child_conn, self.execute_func, tool_name, payload)
+        )
+        process.start()
+        
+        # Close the child connection in the parent immediately
+        child_conn.close()
+        
+        try:
+            if parent_conn.poll(timeout):
+                success, output = parent_conn.recv()
+                if success:
+                    return output
+                else:
+                    raise Exception(output)
+            else:
+                # Forcefully terminate to prevent zombie execution loops
+                process.terminate()
+                process.join(timeout=1.0)
+                if process.is_alive():
+                    process.kill()
+                raise TimeoutError(f"Subprocess tool execution timed out after {timeout} seconds")
+        finally:
+            parent_conn.close()
+            if process.is_alive():
+                process.terminate()
+                process.join()
+            process.close()
+
+
+class ThreadSandboxExecutor(BaseSandboxExecutor):
+    """
+    Fallback Execution Layer Strategy:
+    Runs tool execution in a single thread inside the parent process memory boundary.
+
+    WARNING:
+    This serves purely as a fallback mechanism when multiprocessing/pickling is impossible
+    (e.g., executing dynamically generated local mocks, non-picklable functions, or lambda callables).
+    It does NOT provide process isolation or termination capability.
+    """
+    def __init__(self, execute_func: Callable[[str, dict[str, Any]], Any]):
+        self.execute_func = execute_func
+
+    def execute(self, tool_name: str, payload: dict[str, Any], timeout: int) -> Any:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(self.execute_func, tool_name, payload)
+            try:
+                return future.result(timeout=timeout)
+            except FuturesTimeoutError:
+                raise TimeoutError(f"Thread tool execution timed out after {timeout} seconds")
+
+
+class SandboxExecutor(BaseSandboxExecutor):
+    """
+    Unified Sandbox Executor coordinating isolated subprocess runs
+    with thread fallbacks in case of pickling constraints.
+    """
+    def __init__(self, execute_func: Callable[[str, dict[str, Any]], Any]):
+        self.execute_func = execute_func
+        self.subprocess_executor = SubprocessSandboxExecutor(execute_func)
+        self.thread_executor = ThreadSandboxExecutor(execute_func)
+
+    def execute(self, tool_name: str, payload: dict[str, Any], timeout: int) -> Any:
+        try:
+            # Try isolated execution first
+            return self.subprocess_executor.execute(tool_name, payload, timeout)
+        except (AttributeError, TypeError, pickle.PicklingError) as e:
+            # Fallback when serialization is impossible (e.g. dynamic mock lambdas)
+            print(f"[SandboxExecutor] Process isolation failed due to pickling constraints: {e}. Falling back to Thread sandbox.")
+            return self.thread_executor.execute(tool_name, payload, timeout)
+
+
+# ---------------------------------------------------------------------------
 # GovernedExecutionRuntime
 # ---------------------------------------------------------------------------
 
@@ -238,18 +357,18 @@ class GovernedExecutionRuntime:
     """Timeout-enforcing, state-tracked execution envelope.
 
     The runtime is **stateless between calls** — each ``execute_governed``
-    invocation creates a fresh state machine.  No shared mutable state exists
+    invocation creates a fresh state machine. No shared mutable state exists
     between executions.
 
     Parameters
     ----------
     emit : callable, optional
-        Receives each ``RuntimeGovernanceEvent``.  Defaults to a no-op.
+        Receives each ``RuntimeGovernanceEvent``. Defaults to a no-op.
         Plug in a function that forwards events to the audit logger or an
         observability backend.
     cleanup_hooks : dict, optional
-        Mapping of ``tool_name → callable(payload, context)``.  Called only
-        on TIMED_OUT or FAILED states.  Hook failures are isolated.
+        Mapping of ``tool_name → callable(payload, context)``. Called only
+        on TIMED_OUT, TERMINATED, or FAILED states. Hook failures are isolated.
     """
 
     def __init__(
@@ -272,15 +391,14 @@ class GovernedExecutionRuntime:
     ) -> GovernedExecutionResult:
         """Run *execute_func* inside a governed execution envelope.
 
-        This method is called from the interceptor at STEP 7.  It:
+        This method is called from the interceptor at STEP 7. It:
 
         1. Validates that ``context.proof_verified is True`` (redundant with
            ``__post_init__`` but defence-in-depth).
         2. Transitions state PENDING → RUNNING, emits EXECUTION_STARTED.
-        3. Submits ``execute_func`` to a single-worker thread pool with
-           ``timeout=context.timeout_seconds``.
+        3. Invokes tool inside SandboxExecutor (Process sandbox or fallback).
         4. On success → COMPLETED + EXECUTION_COMPLETED event.
-        5. On timeout → TIMED_OUT + EXECUTION_TIMEOUT event + cleanup.
+        5. On timeout → TERMINATED + EXECUTION_TERMINATED event + cleanup.
         6. On exception → FAILED + EXECUTION_FAILED event + cleanup.
         7. Returns ``GovernedExecutionResult`` with full event trace.
 
@@ -321,9 +439,9 @@ class GovernedExecutionRuntime:
         start_ns = time.monotonic_ns()
 
         try:
-            with ThreadPoolExecutor(max_workers=1) as pool:
-                future = pool.submit(execute_func, context.tool_name, payload)
-                result = future.result(timeout=context.timeout_seconds)
+            # Instantiate Sandbox Executor for isolated runtime containment
+            executor = SandboxExecutor(execute_func)
+            result = executor.execute(context.tool_name, payload, context.timeout_seconds)
 
             elapsed_ms = (time.monotonic_ns() - start_ns) / 1_000_000
 
@@ -343,14 +461,14 @@ class GovernedExecutionRuntime:
                 events=tuple(events),
             )
 
-        except FuturesTimeoutError:
+        except TimeoutError as exc:
             elapsed_ms = (time.monotonic_ns() - start_ns) / 1_000_000
 
-            # -- RUNNING → TIMED_OUT -------------------------------------
+            # -- RUNNING → TERMINATED (to prevent zombies on timeout) ----
             _emit_and_record(
-                "EXECUTION_TIMEOUT",
-                ExecutionState.TIMED_OUT,
-                detail=f"Exceeded {context.timeout_seconds}s timeout",
+                "EXECUTION_TERMINATED",
+                ExecutionState.TERMINATED,
+                detail=str(exc),
                 duration_ms=elapsed_ms,
             )
 
@@ -358,7 +476,7 @@ class GovernedExecutionRuntime:
 
             raise Exception(
                 f"Governed execution timed out after {context.timeout_seconds}s "
-                f"[execution_id={context.execution_id[:16]}]"
+                f"[execution_id={context.execution_id[:16]}]: {exc}"
             )
 
         except Exception as exc:
@@ -387,7 +505,7 @@ class GovernedExecutionRuntime:
         payload: dict[str, Any],
         events: list[RuntimeGovernanceEvent],
     ) -> None:
-        """Run the cleanup hook for a tool, if registered.  Failures are isolated."""
+        """Run the cleanup hook for a tool, if registered. Failures are isolated."""
 
         hook = self._cleanup_hooks.get(context.tool_name)
         if hook is None:
@@ -412,7 +530,7 @@ class GovernedExecutionRuntime:
                 event_type="CLEANUP_FAILED",
                 execution_id=context.execution_id,
                 tool_name=context.tool_name,
-                state=events[-1].state,  # stay in TIMED_OUT or FAILED
+                state=events[-1].state, # stay in TIMED_OUT/TERMINATED or FAILED
                 session_id=context.session_id,
                 detail=f"Cleanup hook failed: {cleanup_exc}",
             )

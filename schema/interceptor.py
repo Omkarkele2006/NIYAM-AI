@@ -15,7 +15,9 @@ class InterceptionBlocked(Exception):
 
 
 # Module-level runtime instance.  Stateless between calls — safe to reuse.
-_runtime = GovernedExecutionRuntime()
+_runtime = GovernedExecutionRuntime(
+    emit=lambda event: log_event(event.to_dict())
+)
 
 
 def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):

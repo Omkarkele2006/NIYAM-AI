@@ -57,11 +57,11 @@ Prompt
 
 ### 6. Execution Runtime
 *   **File Location**: [execution_runtime.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/schema/orchestration/execution_runtime.py)
-*   **Description**: Envelope that manages the approved execution step.
+*   **Description**: The Isolated Execution Runtime managing the approved execution steps.
 *   **Key Controls**:
-    *   **FSM State Transitions**: Enforces logical lifecycle transitions (`PENDING` -> `RUNNING` -> `COMPLETED`/`TIMED_OUT`/`FAILED`).
-    *   **Timeout Handling**: Spawns executions inside worker threads, terminating them if they exceed the specified timeout.
-    *   **Failsafe Cleanups**: Triggers custom, tool-specific rollback routines in case of timeouts or execution errors.
+    *   **FSM State Transitions**: Enforces logical lifecycle transitions (`PENDING` -> `RUNNING` -> `COMPLETED` / `FAILED` / `TERMINATED` -> `CLEANED_UP`).
+    *   **Timeout Handling**: Runs executions inside the Process Isolation Layer (`SubprocessSandboxExecutor`), allowing clean process termination to prevent zombie execution loops.
+    *   **Failsafe Cleanups**: Triggers custom, tool-specific rollback routines in case of timeouts, execution termination, or execution errors.
 
 ### 7. Audit Logger
 *   **File Location**: [audit_logger.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/schema/audit_logger.py)
@@ -110,3 +110,59 @@ sequenceDiagram
     Interceptor-->>Agent: Return result
     deactivate Interceptor
 ```
+
+---
+
+## Execution Containment & Process Isolation Layer
+
+To protect the host process from unverified tool behavior, NIYAM-AI implements an **Execution Containment Layer** structured as follows:
+
+```mermaid
+graph TD
+    subgraph Execution Containment Layer
+        Runtime[GovernedExecutionRuntime (Isolated Execution Runtime)]
+        SandboxExec[Sandbox Executor (Implementation Layer)]
+        SubprocExec[SubprocessSandboxExecutor (Process Isolation Layer - Preferred)]
+        ThreadExec[ThreadSandboxExecutor (Fallback Containment)]
+
+        Runtime --> SandboxExec
+        SandboxExec --> SubprocExec
+        SandboxExec --> ThreadExec
+    end
+```
+
+### Process Isolation Layer
+Tool execution is isolated from the parent interpreter using **process isolation**. The runtime spawns a separate OS process via Python's `multiprocessing` to isolate:
+1.  **Memory Space**: Prevents tool callables from directly accessing or mutating global interpreter states, database connections, keys, or sealed contracts in the parent process.
+2.  **Resource Containment**: Enables clean parent-directed termination (`.terminate()` / `.kill()`) if the execution exceeds the timeout limit, preventing lingering zombie execution threads in the host system.
+
+### Execution State Transitions
+The lifecycle of a single tool execution attempt is managed as a finite state machine (FSM) enforcing safe transition sequences:
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING
+    PENDING --> RUNNING : EXECUTION_STARTED
+    RUNNING --> COMPLETED : EXECUTION_COMPLETED
+    RUNNING --> TIMED_OUT : EXECUTION_TIMEOUT (Thread fallback path)
+    RUNNING --> TERMINATED : EXECUTION_TERMINATED (Subprocess path)
+    RUNNING --> FAILED : EXECUTION_FAILED
+
+    TIMED_OUT --> CLEANED_UP : CLEANUP_COMPLETED/FAILED
+    FAILED --> CLEANED_UP : CLEANUP_COMPLETED/FAILED
+    TERMINATED --> CLEANED_UP : CLEANUP_COMPLETED/FAILED
+
+    COMPLETED --> [*]
+    CLEANED_UP --> [*]
+```
+
+### Threat Model & Current Limitations
+While the current Process Isolation Layer isolates memory and enables timeout termination, it does not constitute a full operating-system-level sandbox:
+
+*   **Current Limitations**:
+    *   *Shared OS Namespace*: The isolated subprocess still shares the host machine's network stack, local filesystem, and environment variables. If a malicious tool attempts disk I/O or network requests, standard process isolation does not block these OS-level calls automatically unless handled by OS permissions.
+    *   *Serialization (Pickling) Constraints*: Callables must be pickleable to be passed to a subprocess. Local lambdas, dynamically generated nested helper functions, and unpickleable objects trigger fallback to `ThreadSandboxExecutor` (which runs in the parent memory space).
+*   **Future Opportunities for Stronger Sandboxing**:
+    *   *Virtualization*: Packaging tools in gVisor, WebAssembly (Wasm) runtimes, or MicroVMs (e.g., Firecracker) to restrict access to network, system calls, and the filesystem.
+    *   *Subprocess Jail/Chroot*: Confining process filesystem root directories and running under unprivileged system users.
+    *   *Serialization Upgrades*: Utilizing serialization frameworks like `dill` or `pathos` to decrease pickling failures.
