@@ -32,6 +32,7 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
 
         # STEP 2: Tool Gate
         gate.validate_tool(tool_name)
+        gate.validate_schema(tool_name, payload)
 
         # STEP 3: Feature Extraction (ML INPUT)
         features = extract_features(

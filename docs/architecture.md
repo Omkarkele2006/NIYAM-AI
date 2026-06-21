@@ -32,13 +32,17 @@ Prompt
 
 ### 2. Tool Gate
 *   **File Location**: [tool_gate.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/schema/tool_gate.py)
-*   **Description**: Validates tool names against the sealed lists of the bound `IntentContract`.
-*   **Schema Enforcement**: Incorporates `jsonschema` payload validation (implemented for `proceed_transaction`) to guarantee parameter sanity and block malformed payloads.
+*   **Description**: The Tool Gate enforces the system's boundary defense checks through two distinct verification sub-layers:
+    *   **Authorization Layer**: Validates tool names against the active `IntentContract`. Checks that the tool is listed under `allowed_tools` and is absent from `forbidden_tools`.
+    *   **Schema Validation Layer**: Validates inputs using strict `jsonschema` payload validations. If a parameter doesn't meet defined ranges, constraints, or types, or carries unexpected additional fields (`additionalProperties: False`), validation fails.
+*   **Defense Posture**:
+    *   **Default-Deny for Missing Schemas**: If a tool is called that does not have a corresponding schema definition mapped, it is blocked automatically.
+    *   **Structured Errors**: Validation errors raise a `GovernanceValidationError` formatting detailed contexts (tool, status, and precise failure message) into standard JSON strings for parsing or logging.
 
 ### 3. Interceptor
 *   **File Location**: [interceptor.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/schema/interceptor.py)
 *   **Description**: The central policy enforcement point (PEP) that coordinates the execution check sequence.
-*   **Responsibility**: Intercepts requested tool calls, coordinates CFI, Tool Gate, zkML feature extraction, proof generation, and verification before dispatching to the execution runtime. In case of verification failure, it flags security alerts and logs the blocked action.
+*   **Responsibility**: Intercepts requested tool calls, coordinates CFI, Tool Gate authorization and schema checks, zkML feature extraction, proof generation, and verification before dispatching to the execution runtime. In case of verification failure, it flags security alerts and logs the blocked action.
 
 ### 4. zkML Pipeline
 *   **Files**: 
@@ -63,3 +67,46 @@ Prompt
 *   **File Location**: [audit_logger.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/schema/audit_logger.py)
 *   **Description**: Writes structured execution and interception records to an append-only JSONLines database (`audit_log.jsonl`).
 *   **Hash Chaining**: Implements a cryptographic chain where each entry logs the hash of the preceding line. On startup, it reads the last valid line to resume the chain, guaranteeing chronological logging and detecting deletion or tampering.
+
+---
+
+## Governance Validation Flow Sequence
+
+The sequence below illustrates the validation flow coordinated by the `Interceptor` when a tool invocation is requested:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Agent as Autonomous Agent
+    participant Interceptor as Interceptor (PEP)
+    participant CFI as Control Flow Integrity
+    participant Gate as ToolAuthorityGate (PDP)
+    participant Runtime as Execution Runtime (PEP)
+    participant Log as Audit Logger
+
+    Agent->>Interceptor: Request tool execution (tool, payload)
+    activate Interceptor
+    Interceptor->>CFI: validate_step(tool)
+    note over CFI: Verifies sequential order compliance
+    CFI-->>Interceptor: Step Validated
+    
+    Interceptor->>Gate: validate_tool(tool)
+    note over Gate: Checks allow/deny list of IntentContract
+    Gate-->>Interceptor: Authorized (or throws block reason)
+    
+    Interceptor->>Gate: validate_schema(tool, payload)
+    note over Gate: Validates parameters & rejects extra properties
+    Gate-->>Interceptor: Schema Compliant (or throws block reason)
+    
+    note over Interceptor: Run zkML feature extraction, proving, & verification
+    
+    Interceptor->>Runtime: execute_governed(context, payload)
+    activate Runtime
+    note over Runtime: Enforces FSM state changes & timeout
+    Runtime-->>Interceptor: Execution Output (or timeout/failure)
+    deactivate Runtime
+    
+    Interceptor->>Log: log_event(status=EXECUTED)
+    Interceptor-->>Agent: Return result
+    deactivate Interceptor
+```
