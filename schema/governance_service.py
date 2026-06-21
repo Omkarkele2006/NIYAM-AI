@@ -387,3 +387,70 @@ def deactivate_policy_version(policy_id: str, version: str) -> Policy:
         })
     return policy
 
+
+@st.cache_data(ttl=5, show_spinner=False)
+def get_dashboard_overview_metrics() -> dict[str, Any]:
+    """
+    Compute unified health metrics for the Governance Overview page.
+    Queries the database and PolicyRepository to construct governance health vectors.
+    """
+    repo = AuditRepository()
+    policy_repo = PolicyRepository()
+
+    # 1. Governance Health
+    all_policies = policy_repo.list_policies()
+    total_versions = sum(len(versions) for versions in all_policies.values())
+    active_count = 0
+    for p_id in all_policies:
+        if policy_repo.get_active_policy(p_id) is not None:
+            active_count += 1
+
+    # Query validation events from SQLite
+    with repo._get_connection() as conn:
+        policy_validated = conn.execute("SELECT COUNT(*) FROM audit_events WHERE event_type = 'POLICY_VALIDATED'").fetchone()[0]
+        policy_rejected = conn.execute("SELECT COUNT(*) FROM audit_events WHERE event_type = 'POLICY_REJECTED'").fetchone()[0]
+
+    total_validations = policy_validated + policy_rejected
+    validation_success_rate = (policy_validated / total_validations * 100.0) if total_validations > 0 else 100.0
+
+    # 2. Runtime Health
+    runtime_counts = repo.count_metrics()
+
+    # Detailed FSM Execution states
+    with repo._get_connection() as conn:
+        failed_execs = conn.execute("SELECT COUNT(*) FROM audit_events WHERE state = 'FAILED'").fetchone()[0]
+        # Timed out executions are recorded as either 'TIMED_OUT' or 'TERMINATED'
+        timed_out_execs = conn.execute("SELECT COUNT(*) FROM audit_events WHERE state IN ('TIMED_OUT', 'TERMINATED')").fetchone()[0]
+
+    # 3. Proof Health
+    zkml_metrics = repo.get_zkml_metrics()
+
+    # 4. Audit Health
+    chain_report = repo.verify_chain()
+
+    with repo._get_connection() as conn:
+        last_event_row = conn.execute("SELECT timestamp FROM audit_events ORDER BY id DESC LIMIT 1").fetchone()
+        last_check_ts = last_event_row["timestamp"] if last_event_row else None
+
+    return {
+        "active_policies": active_count,
+        "total_policy_versions": total_versions,
+        "policy_validation_success_rate": validation_success_rate,
+        "policy_rejections": policy_rejected,
+
+        "successful_executions": runtime_counts["executed_actions"],
+        "blocked_executions": runtime_counts["blocked_actions"],
+        "failed_executions": failed_execs,
+        "timed_out_executions": timed_out_execs,
+
+        "proof_success_count": zkml_metrics["proof_success_count"],
+        "proof_failure_count": zkml_metrics["proof_failure_count"],
+        "verification_success_count": zkml_metrics["verification_success_count"],
+        "verification_failure_count": zkml_metrics["verification_failure_count"],
+
+        "audit_events_count": runtime_counts["total_actions"],
+        "chain_status": "VALID" if chain_report["valid"] else "INVALID",
+        "broken_links_count": chain_report["broken_links"],
+        "last_integrity_check": last_check_ts
+    }
+

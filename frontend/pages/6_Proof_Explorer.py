@@ -17,7 +17,7 @@ for path in (REPO_ROOT, FRONTEND_ROOT):
         sys.path.insert(0, str(path))
 
 from components.cards import cyber_card, metric_card, status_badge
-from schema.governance_service import get_system_metrics, load_audit_logs
+from schema.governance_service import get_system_metrics, load_audit_logs, get_zkml_metrics
 from utils.audit_parser import get_verification_statistics
 from utils.proof_reader import (
     get_latest_proof_metadata,
@@ -84,6 +84,7 @@ verification = get_verification_status()
 verification_key = get_verification_key_metadata()
 overview = get_proof_artifact_overview()
 verification_stats = get_verification_statistics()
+zkml_metrics = get_zkml_metrics()
 system_metrics = get_system_metrics()
 logs = load_audit_logs()
 
@@ -125,6 +126,39 @@ with metric_col4:
         str(verification_stats["verified"]),
         f"{verification_stats['verification_rate']}% coverage",
         "normal",
+    )
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+st.markdown("### zkML Pipeline Performance")
+perf_col1, perf_col2, perf_col3, perf_col4 = st.columns(4)
+with perf_col1:
+    metric_card(
+        "Avg Proving Latency",
+        f"{zkml_metrics['average_proof_latency_ms']:.1f} ms",
+        "EZKL witness + proving",
+        "warning"
+    )
+with perf_col2:
+    metric_card(
+        "Avg Verification Latency",
+        f"{zkml_metrics['average_verification_latency_ms']:.1f} ms",
+        "EZKL cryptographic verification",
+        "success"
+    )
+with perf_col3:
+    metric_card(
+        "Proving Health",
+        f"{zkml_metrics['proof_success_count']} OK",
+        f"{zkml_metrics['proof_failure_count']} FAILED",
+        "normal"
+    )
+with perf_col4:
+    metric_card(
+        "Verification Health",
+        f"{zkml_metrics['verification_success_count']} OK",
+        f"{zkml_metrics['verification_failure_count']} FAILED",
+        "danger"
     )
 
 st.markdown("<br>", unsafe_allow_html=True)

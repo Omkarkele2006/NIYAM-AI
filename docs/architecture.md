@@ -340,3 +340,42 @@ Policy operations are captured dynamically within the SQLite audit database (`au
 4.  `POLICY_SEALED`: Written when an `IntentContract` derived from a policy is sealed.
 5.  `POLICY_VERSION_ACTIVATED`: Written when a policy status shifts to `"active"`.
 6.  `POLICY_VERSION_DEACTIVATED`: Written when a policy version is deactivated.
+
+---
+
+## Governance Control Center & Explainability Dashboard
+
+To expose the underlying governance features to administrators and operators, NIYAM-AI provides a premium Streamlit-based **Governance Control Center**.
+
+### 1. Unified Health Control Center (Overview)
+*   **File Location**: [1_Governance_Overview.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/frontend/pages/1_Governance_Overview.py)
+*   **Metrics Tracked**:
+    *   **Governance & Policy**: Active policies, total versions, validation success/rejection rates.
+    *   **ZKML Proofs**: Compilation counts, success rates, latency indicators.
+    *   **Execution Runtime**: Container counts, sandbox states (SUCCESS, TIMED_OUT, TERMINATED, FAILED), blocked counts.
+    *   **Audit Chain Integrity**: Total events, hash chain validation status, and link validation checks.
+
+### 2. Policy Explorer & Version Diffing
+*   **File Location**: [2_Policy_Explorer.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/frontend/pages/2_Policy_Explorer.py)
+*   **Capabilities**:
+    *   Allows exploring JSON configurations, allowed/forbidden list rules, and metadata for loaded policy version artifacts.
+    *   Leverages the `PolicyDiffEngine` to perform visual, side-by-side version comparison, mapping added/removed tools, changed descriptions/status, and modified constraints between two selected versions of a policy.
+
+### 3. Chronological Decision Explorer
+*   **File Location**: [3_Decision_Explorer.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/frontend/pages/3_Decision_Explorer.py)
+*   **Capabilities**:
+    *   Traces selected tool execution attempts from the initial request down to the final commit.
+    *   Renders a vertical chronological flowchart displaying FSM state transitions and security checks (Policy Loading -> Schema Validation -> zkML Proving -> ZK Verification -> Process Execution -> Hash Ledger Commit).
+
+### 4. Live Monitor & Latency Metrics
+*   **File Locations**: [4_Live_Monitor.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/frontend/pages/4_Live_Monitor.py) and [6_Proof_Explorer.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/frontend/pages/6_Proof_Explorer.py)
+*   **Capabilities**:
+    *   Tracks execution states in real-time to report FSM sandbox containment counts.
+    *   Displays latency monitors plotting witness processing times and verification throughput statistics.
+
+### 5. Audit Chain Verification Widget
+*   **File Location**: [7_Audit_Logs.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/frontend/pages/7_Audit_Logs.py)
+*   **Capabilities**:
+    *   Integrates an interactive cryptographic chain verification widget.
+    *   Allows operators to run live forensic-grade signature check passes across the entire SQLite ledger to detect records modifications, missing logs, or hash breaks in the append-only audit trail.
+

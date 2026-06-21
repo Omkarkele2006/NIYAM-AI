@@ -27,6 +27,16 @@ class Policy(BaseModel):
     constraints: Dict[str, Any] = Field(default_factory=dict)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
+    @property
+    def policy_hash(self) -> str:
+        """Compute a deterministic SHA-256 hash of the policy JSON content."""
+        import hashlib
+        normalized = json.dumps(
+            self.dict(),
+            sort_keys=True
+        )
+        return hashlib.sha256(normalized.encode()).hexdigest()
+
     def to_contract(self, agent_name: str, user_task: str) -> Any:
         """Convert this policy artifact into a runtime IntentContract."""
         from schema.intent_contract import IntentContract

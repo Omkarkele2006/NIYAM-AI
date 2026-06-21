@@ -17,7 +17,7 @@ for path in (REPO_ROOT, FRONTEND_ROOT):
         sys.path.insert(0, str(path))
 
 from components.cards import cyber_card, metric_card, status_badge
-from schema.governance_service import get_system_metrics
+from schema.governance_service import get_system_metrics, get_dashboard_overview_metrics
 from utils.audit_parser import (
     get_audit_summary_metrics,
     get_blocked_actions,
@@ -477,6 +477,42 @@ with proof_col:
         height=300,
     )
     st.plotly_chart(fig_proof, use_container_width=True)
+
+section_title("EXECUTION RUNTIME CONTAINMENT (SANDBOX PROCESS ISOLATION)")
+
+fsm_col1, fsm_col2, fsm_col3, fsm_col4 = st.columns(4)
+overview_metrics = get_dashboard_overview_metrics()
+
+with fsm_col1:
+    metric_card(
+        "Completed Execs",
+        str(overview_metrics["successful_executions"]),
+        "Processed successfully",
+        "success"
+    )
+with fsm_col2:
+    metric_card(
+        "Blocked Execs",
+        str(overview_metrics["blocked_executions"]),
+        "Policy constraints enforced",
+        "danger"
+    )
+with fsm_col3:
+    metric_card(
+        "Containment Fails",
+        str(overview_metrics["failed_executions"]),
+        "Runtime error blocks",
+        "warning"
+    )
+with fsm_col4:
+    metric_card(
+        "Subprocess Timeouts",
+        str(overview_metrics["timed_out_executions"]),
+        "Killed by timeout watchdog",
+        "danger"
+    )
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 section_title("SYSTEM HEALTH INDICATORS")
 
