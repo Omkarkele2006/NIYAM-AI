@@ -6,7 +6,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from schema.governance_service import load_audit_logs
+from schema.governance_service import load_audit_logs, get_decision_timeline, get_execution_forensics
 from utils.theme import configure_page, load_global_css, section_title, cyber_header
 from components.cards import cyber_card, status_badge
 from utils.time_utils import format_timestamp_short
@@ -85,7 +85,8 @@ for row in reversed(logs):
                 "status": status or "BLOCKED",
                 "timestamp": row.get("timestamp"),
                 "policy": row.get("policy"),
-                "reason": row.get("reason")
+                "reason": row.get("reason"),
+                "execution_id": row.get("execution_id")
             })
 
 if not execution_decisions:
@@ -124,96 +125,155 @@ else:
             st.markdown(f"**Applied Policy:** `{selected_dec['policy']}`")
 
     st.markdown("<br>", unsafe_allow_html=True)
+
+    # Add expandable "Execution Forensics" panel
+    exec_id = selected_dec.get("execution_id") or selected_dec.get("session_id")
+    forensics = get_execution_forensics(exec_id)
+    if forensics:
+        with st.expander("🔍 View Execution Forensics", expanded=False):
+            st.markdown("### Cryptographic Hashes & Identifiers")
+            col_f1, col_f2 = st.columns(2)
+            with col_f1:
+                st.markdown(f"**Execution ID:** `{forensics.get('execution_id', '-')}`")
+                st.markdown(f"**Session ID:** `{forensics.get('session_id', '-')}`")
+                st.markdown(f"**Action Hash:** `{forensics.get('action_hash', '-')}`")
+                st.markdown(f"**Intent Hash:** `{forensics.get('intent_hash', '-')}`")
+            with col_f2:
+                st.markdown(f"**Proof Hash:** `{forensics.get('proof_hash', '-')}`")
+                st.markdown(f"**Witness Hash:** `{forensics.get('witness_hash', '-')}`")
+                st.markdown(f"**Input Hash:** `{forensics.get('input_hash', '-')}`")
+                st.markdown(f"**Chain Integrity Status:** `{forensics.get('audit_chain_status', '-')}`")
+                
+            st.markdown("### Execution & Proving Latencies")
+            col_f3, col_f4 = st.columns(2)
+            with col_f3:
+                w_ms = forensics.get("witness_generation_ms")
+                st.markdown(f"**Witness Generation Time:** `{f'{w_ms:.1f} ms' if w_ms is not None else '-'}`")
+                p_ms = forensics.get("proof_generation_ms")
+                st.markdown(f"**Proof Generation Time:** `{f'{p_ms:.1f} ms' if p_ms is not None else '-'}`")
+            with col_f4:
+                v_ms = forensics.get("verification_ms")
+                st.markdown(f"**Verification Time:** `{f'{v_ms:.1f} ms' if v_ms is not None else '-'}`")
+                t_ms = forensics.get("total_proof_pipeline_ms")
+                st.markdown(f"**Total zkML Pipeline Time:** `{f'{t_ms:.1f} ms' if t_ms is not None else '-'}`")
+                
+            if forensics.get("proof_archive_path"):
+                st.markdown(f"**Proof Archive Path:** `{forensics.get('proof_archive_path')}`")
+
+    st.markdown("<br>", unsafe_allow_html=True)
     section_title("GOVERNANCE TIMELINE TRACE")
     st.caption("Chronological validation sequence performed by the security interceptor:")
 
-    # Retrieve all logs associated with this specific decision session
-    session_logs = [
-        row for row in logs 
-        if row.get("session_id") == selected_dec["session_id"] and row.get("action_hash") == selected_dec["action_hash"]
-    ]
-    
-    # Extract details from matching events
-    policy_loaded_event = next((r for r in logs if r.get("event_type") == "POLICY_LOADED" and r.get("policy_id") == selected_dec.get("policy", "").split("_v")[0]), None)
-    policy_validated_event = next((r for r in logs if r.get("event_type") == "POLICY_VALIDATED" and r.get("policy_id") == selected_dec.get("policy", "").split("_v")[0]), None)
-    policy_sealed_event = next((r for r in logs if r.get("event_type") == "POLICY_SEALED" and r.get("session_id") == selected_dec["session_id"]), None)
-    
-    generation_started = next((r for r in session_logs if r.get("event_type") == "PROOF_GENERATION_STARTED"), None)
-    generation_completed = next((r for r in session_logs if r.get("event_type") == "PROOF_GENERATION_COMPLETED"), None)
-    generation_failed = next((r for r in session_logs if r.get("event_type") == "PROOF_GENERATION_FAILED"), None)
-    
-    verification_started = next((r for r in session_logs if r.get("event_type") == "PROOF_VERIFICATION_STARTED"), None)
-    verification_completed = next((r for r in session_logs if r.get("event_type") == "PROOF_VERIFICATION_COMPLETED"), None)
-    verification_failed = next((r for r in session_logs if r.get("event_type") == "PROOF_VERIFICATION_FAILED"), None)
-    
-    blocked_event = next((r for r in session_logs if r.get("event_type") == "PROOF_EXECUTION_BLOCKED" or r.get("status") == "BLOCKED"), None)
-    execution_event = next((r for r in session_logs if r.get("status") == "EXECUTED"), None)
+    # Retrieve ordered timeline events for this execution/session
+    timeline_events = get_decision_timeline(exec_id)
 
-    # 1. Step 1: Policy Loading
-    if selected_dec.get("policy"):
-        p_id = selected_dec["policy"].split("_v")[0]
-        render_timeline_step(1, "Policy Loaded", f"Governance Policy artifact '{p_id}' loaded from repository directory.", "success")
+    def map_event_to_step_info(event: dict[str, Any]) -> tuple[str, str, str, float | None]:
+        event_type = event.get("event_type")
+        status_val = event.get("status")
+        state_val = event.get("state")
+        
+        # Defaults
+        label_str = event_type or f"Governance Event ({status_val or 'INFO'})"
+        desc_str = event.get("detail") or event.get("reason") or f"Status: {status_val or 'unknown'}"
+        step_status = "idle"
+        dur_val = None
+        
+        # Duration checks
+        if "duration_ms" in event and event["duration_ms"] is not None:
+            dur_val = event["duration_ms"]
+        elif "generation_duration_ms" in event and event["generation_duration_ms"] is not None:
+            dur_val = event["generation_duration_ms"]
+        elif "verification_duration_ms" in event and event["verification_duration_ms"] is not None:
+            dur_val = event["verification_duration_ms"]
+
+        # Map event_type
+        if event_type == "POLICY_LOADED":
+            label_str = "Governance Policy Loaded"
+            step_status = "success" if status_val == "SUCCESS" else "danger"
+        elif event_type == "POLICY_VALIDATED":
+            label_str = "Policy Schema Validated"
+            step_status = "success" if status_val == "SUCCESS" else "danger"
+        elif event_type == "POLICY_REJECTED":
+            label_str = "Policy Schema Rejected"
+            step_status = "danger"
+        elif event_type == "POLICY_SEALED":
+            label_str = "Intent Contract Sealed"
+            step_status = "success"
+        elif event_type == "POLICY_VERSION_ACTIVATED":
+            label_str = "Policy Version Activated"
+            step_status = "success"
+        elif event_type == "POLICY_VERSION_DEACTIVATED":
+            label_str = "Policy Version Deactivated"
+            step_status = "warning"
+        elif event_type == "PROOF_ENVIRONMENT_INVALID":
+            label_str = "zkML Environment Validation"
+            step_status = "danger"
+        elif event_type == "FEATURE_DIMENSION_MISMATCH":
+            label_str = "Feature Dimension Mismatch"
+            step_status = "danger"
+        elif event_type == "PROOF_GENERATION_STARTED":
+            label_str = "zkML Proof Generation Started"
+            step_status = "warning"
+        elif event_type == "PROOF_GENERATION_COMPLETED":
+            label_str = "zkML Proof Generated"
+            step_status = "success"
+            if not dur_val and "generation_duration_ms" in event:
+                dur_val = event["generation_duration_ms"]
+        elif event_type == "PROOF_GENERATION_FAILED":
+            label_str = "zkML Proof Generation Failed"
+            step_status = "danger"
+        elif event_type == "PROOF_GENERATION_TIMEOUT":
+            label_str = "zkML Proof Generation Timeout"
+            step_status = "danger"
+        elif event_type == "WITNESS_GENERATION_TIMEOUT":
+            label_str = "Witness Generation Timeout"
+            step_status = "danger"
+        elif event_type == "PROOF_VERIFICATION_STARTED":
+            label_str = "Cryptographic Proof Verification Started"
+            step_status = "warning"
+        elif event_type == "PROOF_VERIFICATION_COMPLETED":
+            label_str = "Cryptographic Proof Verified"
+            step_status = "success"
+            if not dur_val and "verification_duration_ms" in event:
+                dur_val = event["verification_duration_ms"]
+        elif event_type == "PROOF_VERIFICATION_FAILED":
+            label_str = "Cryptographic Proof Verification Failed"
+            step_status = "danger"
+        elif event_type == "PROOF_EXECUTION_BLOCKED":
+            label_str = "Governance Execution Blocked"
+            step_status = "danger"
+        elif event_type == "EXECUTION_STARTED":
+            label_str = "Isolated Process Execution Started"
+            step_status = "warning"
+        elif event_type == "EXECUTION_COMPLETED":
+            label_str = "Isolated Process Execution Completed"
+            step_status = "success"
+        elif event_type == "EXECUTION_TERMINATED":
+            label_str = "Isolated Process Execution Terminated"
+            step_status = "danger"
+        elif event_type == "CLEANUP_COMPLETED":
+            label_str = "Runtime Cleanup Completed"
+            step_status = "success"
+        elif event_type == "CLEANUP_FAILED":
+            label_str = "Runtime Cleanup Failed"
+            step_status = "danger"
+        else:
+            # Fallback to checking status/state if no event_type matching
+            if status_val == "EXECUTED" or state_val == "COMPLETED" or event.get("status") == "EXECUTED":
+                label_str = "Isolated Process Execution"
+                step_status = "success"
+                desc_str = "Tool dispatched inside isolated SubprocessSandboxExecutor memory boundary."
+            elif status_val == "BLOCKED" or state_val == "FAILED" or event.get("status") == "BLOCKED":
+                label_str = "Governance Action Blocked"
+                step_status = "danger"
+                desc_str = event.get("reason") or "Fail-closed policy enforced - execution prevented."
+
+        return label_str, desc_str, step_status, dur_val
+
+    # Loop through events in chronological order and render steps dynamically
+    if not timeline_events:
+        st.warning("No timeline events found for this selection.")
     else:
-        render_timeline_step(1, "Policy Loaded", "No managed policy artifact linked to this execution contract (fallback inline contract).", "warning")
-
-    # 2. Step 2: Policy Validation
-    if selected_dec.get("policy"):
-        p_ver = selected_dec["policy"].split("_v")[-1] if "_v" in selected_dec["policy"] else "unknown"
-        render_timeline_step(2, "Policy Schema Validated", f"Checked version '{p_ver}' semantic formatting, rule conflicts, and dynamic tool gate checks.", "success")
-    else:
-        render_timeline_step(2, "Policy Schema Validated", "Validation skipped (contract instantiated directly in memory).", "warning")
-
-    # 3. Step 3: Contract Sealed
-    render_timeline_step(3, "Intent Contract Sealed", "Tuple conversions completed, and fields locked to enforce runtime immutability.", "success")
-
-    # 4. Step 4: Tool Gate Check
-    if blocked_event and ("forbidden" in blocked_event.get("reason", "").lower() or "not allowed" in blocked_event.get("reason", "").lower()):
-        render_timeline_step(4, "Tool Gate Authorization Check", f"BLOCKED: {blocked_event.get('reason')}", "danger")
-    else:
-        render_timeline_step(4, "Tool Gate Authorization Check", "Tool name validated against allowed lists and missing from forbidden lists.", "success")
-
-    # 5. Step 5: Schema Validation
-    if blocked_event and ("schema validation" in blocked_event.get("reason", "").lower() or "no schema registered" in blocked_event.get("reason", "").lower()):
-        render_timeline_step(5, "Payload Schema Validation", f"BLOCKED: {blocked_event.get('reason')}", "danger")
-    elif blocked_event and ("forbidden" in blocked_event.get("reason", "").lower() or "not allowed" in blocked_event.get("reason", "").lower()):
-        render_timeline_step(5, "Payload Schema Validation", "Skipped due to prior authorization block.", "idle")
-    else:
-        render_timeline_step(5, "Payload Schema Validation", "JSON schema validation completed successfully, allowed parameters only.", "success")
-
-    # 6. Step 6: zkML Proving
-    if generation_completed:
-        dur = generation_completed.get("generation_duration_ms")
-        render_timeline_step(6, "zkML Proof Generated", f"EZKL witness processing and proof generation succeeded. Size: {generation_completed.get('proof_size_bytes', 0)} bytes.", "success", duration=dur)
-    elif generation_failed:
-        dur = generation_failed.get("generation_duration_ms")
-        render_timeline_step(6, "zkML Proof Generated", f"FAILED: {generation_failed.get('reason')}", "danger", duration=dur)
-    elif blocked_event:
-        render_timeline_step(6, "zkML Proof Generated", "Skipped due to prior policy or gate validation block.", "idle")
-    else:
-        render_timeline_step(6, "zkML Proof Generated", "Pending or skipped.", "idle")
-
-    # 7. Step 7: ZK Verification
-    if verification_completed:
-        dur = verification_completed.get("verification_duration_ms")
-        render_timeline_step(7, "Cryptographic Proof Verified", "EZKL cryptographic verifier successfully verified the proof against the circuit SRS/VK.", "success", duration=dur)
-    elif verification_failed:
-        dur = verification_failed.get("verification_duration_ms")
-        render_timeline_step(7, "Cryptographic Proof Verified", f"FAILED: {verification_failed.get('reason')}", "danger", duration=dur)
-    elif blocked_event:
-        render_timeline_step(7, "Cryptographic Proof Verified", "Skipped due to prior validation or proving failure.", "idle")
-    else:
-        render_timeline_step(7, "Cryptographic Proof Verified", "Pending or skipped.", "idle")
-
-    # 8. Step 8: Execution Runtime
-    if execution_event:
-        render_timeline_step(8, "Isolated Process Execution", "Tool dispatched inside isolated SubprocessSandboxExecutor memory boundary.", "success")
-    elif blocked_event:
-        render_timeline_step(8, "Isolated Process Execution", "BLOCKED: Fail-closed policy enforced - execution prevented.", "danger")
-    else:
-        render_timeline_step(8, "Isolated Process Execution", "Pending or aborted.", "idle")
-
-    # 9. Step 9: Audit Ledger
-    if execution_event or blocked_event:
-        render_timeline_step(9, "Cryptographic Hash Chain Recorded", "Audit block with previous hash linkage successfully committed to SQLite.", "success")
-    else:
-        render_timeline_step(9, "Cryptographic Hash Chain Recorded", "Pending.", "idle")
+        for idx, event in enumerate(timeline_events, start=1):
+            lbl, desc, step_st, duration = map_event_to_step_info(event)
+            render_timeline_step(idx, lbl, desc, step_st, duration=duration)

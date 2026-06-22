@@ -292,10 +292,10 @@ def _render_governance_pipeline(
 {''.join(stages)}
 </div>
 <div class="gov-pipeline-meta">
-<span>Latest status: {latest_status or "IDLE"}</span>
-<span>Proof artifact: {"online" if proof_exists else "missing"}</span>
-<span>Witness artifact: {"online" if witness_exists else "missing"}</span>
-<span>Audit events: {total_actions}</span>
+<span>Latest status (Audited): {latest_status or "IDLE"}</span>
+<span>Proof artifact (Artifact): {"online" if proof_exists else "missing"}</span>
+<span>Witness artifact (Artifact): {"online" if witness_exists else "missing"}</span>
+<span>Audit events (Audited): {total_actions}</span>
 </div>
 </div>
 """
@@ -348,7 +348,7 @@ metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
 
 with metric_col1:
     metric_card(
-        "Total Events",
+        "Total Events (Audited)",
         str(summary["total_actions"]),
         "Governance audit stream",
         "normal",
@@ -356,7 +356,7 @@ with metric_col1:
 
 with metric_col2:
     metric_card(
-        "Executed",
+        "Executed (Audited)",
         str(summary["executed_actions"]),
         f"{summary['executed_rate']}% execution rate",
         "success",
@@ -364,7 +364,7 @@ with metric_col2:
 
 with metric_col3:
     metric_card(
-        "Blocked",
+        "Blocked (Audited)",
         str(summary["blocked_actions"]),
         f"{summary['blocked_rate']}% blocked",
         "danger",
@@ -372,7 +372,7 @@ with metric_col3:
 
 with metric_col4:
     metric_card(
-        "Verified Proofs",
+        "Verified Proofs (Historical)",
         str(verification["verified"]),
         f"{verification['verification_rate']}% coverage",
         "warning",
@@ -485,28 +485,28 @@ overview_metrics = get_dashboard_overview_metrics()
 
 with fsm_col1:
     metric_card(
-        "Completed Execs",
+        "Completed Execs (Audited)",
         str(overview_metrics["successful_executions"]),
         "Processed successfully",
         "success"
     )
 with fsm_col2:
     metric_card(
-        "Blocked Execs",
+        "Blocked Execs (Audited)",
         str(overview_metrics["blocked_executions"]),
         "Policy constraints enforced",
         "danger"
     )
 with fsm_col3:
     metric_card(
-        "Containment Fails",
+        "Containment Fails (Audited)",
         str(overview_metrics["failed_executions"]),
         "Runtime error blocks",
         "warning"
     )
 with fsm_col4:
     metric_card(
-        "Subprocess Timeouts",
+        "Subprocess Timeouts (Audited)",
         str(overview_metrics["timed_out_executions"]),
         "Killed by timeout watchdog",
         "danger"

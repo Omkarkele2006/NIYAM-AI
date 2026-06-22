@@ -31,7 +31,7 @@ col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     metric_card(
-        "Active Policies",
+        "Active Policies (Runtime)",
         str(metrics["active_policies"]),
         f"Versions: {metrics['total_policy_versions']} total",
         "success"
@@ -39,7 +39,7 @@ with col1:
 
 with col2:
     metric_card(
-        "Execution Rate",
+        "Execution Rate (Audited)",
         f"{metrics['successful_executions']} OK",
         f"{metrics['blocked_executions']} BLOCKED",
         "normal"
@@ -47,7 +47,7 @@ with col2:
 
 with col3:
     metric_card(
-        "zkML Pipelines",
+        "zkML Pipelines (Audited)",
         f"{metrics['proof_success_count']} Proofs",
         f"{metrics['verification_success_count']} Verified",
         "warning"
@@ -55,7 +55,7 @@ with col3:
 
 with col4:
     metric_card(
-        "Audit Ledger",
+        "Audit Ledger (Audited)",
         str(metrics["audit_events_count"]) + " Events",
         f"Chain: {metrics['chain_status']}",
         "danger"

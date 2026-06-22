@@ -454,3 +454,88 @@ def get_dashboard_overview_metrics() -> dict[str, Any]:
         "last_integrity_check": last_check_ts
     }
 
+
+def get_latest_verified_execution() -> dict[str, Any] | None:
+    """Retrieve the latest audited execution where the ZK proof was successfully verified."""
+    repo = AuditRepository()
+    with repo._get_connection() as conn:
+        row = conn.execute(
+            "SELECT raw_data FROM audit_events WHERE verification = 1 ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    if row:
+        return json.loads(row["raw_data"])
+    return None
+
+
+def get_execution_forensics(execution_id: str) -> dict[str, Any] | None:
+    """Retrieve forensic telemetry and audit status for a specific execution ID."""
+    repo = AuditRepository()
+    with repo._get_connection() as conn:
+        rows = conn.execute(
+            "SELECT raw_data FROM audit_events WHERE execution_id = ? ORDER BY id ASC",
+            (execution_id,)
+        ).fetchall()
+    
+    if not rows:
+        return None
+        
+    forensics = {}
+    for row in rows:
+        event = json.loads(row["raw_data"])
+        forensics.update(event)
+        
+    chain_report = repo.verify_chain()
+    forensics["audit_chain_status"] = "VALID" if chain_report["valid"] else "INVALID"
+    return forensics
+
+
+def get_proof_telemetry() -> dict[str, Any]:
+    """Retrieve proof telemetry stats including average/p95 latency and recent runs."""
+    repo = AuditRepository()
+    metrics = repo.get_proof_runtime_metrics()
+    
+    with repo._get_connection() as conn:
+        rows = conn.execute(
+            "SELECT raw_data FROM audit_events WHERE execution_id IS NOT NULL AND execution_id != '' ORDER BY id DESC"
+        ).fetchall()
+        
+    executions_map = {}
+    for row in rows:
+        event = json.loads(row["raw_data"])
+        exec_id = event.get("execution_id")
+        if exec_id not in executions_map:
+            executions_map[exec_id] = event
+        else:
+            for k, v in event.items():
+                if k not in executions_map[exec_id] or executions_map[exec_id][k] is None:
+                    executions_map[exec_id][k] = v
+                    
+    recent_runs = list(executions_map.values())
+    
+    return {
+        "metrics": metrics,
+        "recent_runs": recent_runs
+    }
+
+
+def get_decision_timeline(execution_id: str) -> list[dict[str, Any]]:
+    """Construct the ordered timeline of audit events for a given execution/session."""
+    repo = AuditRepository()
+    with repo._get_connection() as conn:
+        row = conn.execute(
+            "SELECT session_id FROM audit_events WHERE execution_id = ? LIMIT 1",
+            (execution_id,)
+        ).fetchone()
+        
+        if not row:
+            session_id = execution_id
+        else:
+            session_id = row["session_id"]
+            
+        rows = conn.execute(
+            "SELECT raw_data FROM audit_events WHERE session_id = ? ORDER BY id ASC",
+            (session_id,)
+        ).fetchall()
+        
+    return [json.loads(r["raw_data"]) for r in rows]
+

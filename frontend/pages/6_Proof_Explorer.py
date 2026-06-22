@@ -79,13 +79,23 @@ load_global_css()
 section_title("ZKML PROOF EXPLORER")
 status_badge("PROOF OBSERVABILITY", "info")
 
+# Sourcing everything from centralized governance service
+from schema.governance_service import (
+    get_latest_verified_execution,
+    get_proof_telemetry,
+)
+
+latest_verified = get_latest_verified_execution()
+telemetry = get_proof_telemetry()
+zkml_metrics = telemetry["metrics"]
+recent_runs = telemetry["recent_runs"]
+
 proof = get_latest_proof_metadata()
 witness = get_witness_artifact()
 verification = get_verification_status()
 verification_key = get_verification_key_metadata()
 overview = get_proof_artifact_overview()
 verification_stats = get_verification_statistics()
-zkml_metrics = get_zkml_metrics()
 system_metrics = get_system_metrics()
 logs = load_audit_logs()
 
@@ -103,7 +113,7 @@ metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
 
 with metric_col1:
     metric_card(
-        "Proof Artifact",
+        "Proof Artifact (Artifact)",
         "Present" if proof["exists"] else "Missing",
         _format_bytes(proof["size_bytes"]),
         "success" if proof["exists"] else "danger",
@@ -111,25 +121,24 @@ with metric_col1:
 
 with metric_col2:
     metric_card(
-        "Witness Artifact",
+        "Witness Artifact (Artifact)",
         "Present" if witness["exists"] else "Missing",
         _format_bytes(witness["size_bytes"]),
         "success" if witness["exists"] else "danger",
     )
 
 with metric_col3:
+    st_verified = latest_verified is not None
     metric_card(
-        "Proof Status",
-        verification["status"],
-        "Latest verification result",
-        "success" if verification["verified"] else "warning",
+        "Latest Audited Verification (Audited)",
+        "VERIFIED" if st_verified else "NOT_AVAILABLE",
+        "Audited verification result" if st_verified else "No verified proofs yet",
+        "success" if st_verified else "warning",
     )
 
 with metric_col4:
     metric_card(
-        # Clarified label: these are historical audit DB rows (verification=1),
-        # NOT live ezkl verification results. See 'Proof Status' card for live status.
-        "Historical Verified Events",
+        "Historical Verified Events (Historical)",
         str(verification_stats["verified"]),
         "Audit DB rows (historical) — not live ezkl results",
         "normal",
@@ -137,10 +146,48 @@ with metric_col4:
 
 with metric_col5:
     metric_card(
-        "EZKL Environment",
+        "EZKL Environment (Runtime)",
         "AVAILABLE" if _ezkl_ok else "UNAVAILABLE",
         "Live runtime check" if _ezkl_ok else "Fail-closed: executions blocked",
         "success" if _ezkl_ok else "danger",
+    )
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# Latest Verified Execution Panel
+st.markdown("## Latest Verified Execution")
+if latest_verified:
+    col_l1, col_l2 = st.columns(2)
+    with col_l1:
+        cyber_card(
+            "Latest Audited Proof Metadata",
+            f"""
+            • <b>Execution ID:</b> {latest_verified.get('execution_id', '-')}<br><br>
+            • <b>Session ID:</b> {latest_verified.get('session_id', '-')}<br><br>
+            • <b>Proof Hash:</b> {_short_hash(latest_verified.get('proof_hash'), 32)}<br><br>
+            • <b>Witness Hash:</b> {_short_hash(latest_verified.get('witness_hash'), 32)}<br><br>
+            • <b>Input Hash:</b> {_short_hash(latest_verified.get('input_hash'), 32)}<br><br>
+            • <b>Verification Timestamp:</b> {latest_verified.get('timestamp', '-')}
+            """,
+            min_height="320px",
+        )
+    with col_l2:
+        cyber_card(
+            "Latest Audited Execution Performance",
+            f"""
+            • <b>Verification Result:</b> <strong style="color:#00FF88;">VERIFIED</strong><br><br>
+            • <b>Witness Latency:</b> {latest_verified.get('witness_generation_ms', 0) or 0:.1f} ms<br><br>
+            • <b>Proof Latency:</b> {latest_verified.get('proof_generation_ms', 0) or 0:.1f} ms<br><br>
+            • <b>Verification Latency:</b> {latest_verified.get('verification_ms', 0) or 0:.1f} ms<br><br>
+            • <b>Total Pipeline Latency:</b> {latest_verified.get('total_proof_pipeline_ms', 0) or 0:.1f} ms
+            """,
+            min_height="320px",
+        )
+else:
+    cyber_card(
+        "No Verified Executions Found",
+        "No verified executions were found in the SQLite audit database. Execute a governed tool call to generate a valid cryptographic proof.",
+        min_height="180px",
     )
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -149,31 +196,31 @@ st.markdown("### zkML Pipeline Performance")
 perf_col1, perf_col2, perf_col3, perf_col4 = st.columns(4)
 with perf_col1:
     metric_card(
-        "Avg Proving Latency",
-        f"{zkml_metrics['average_proof_latency_ms']:.1f} ms",
-        "EZKL witness + proving",
+        "Avg Witness Latency (Audited)",
+        f"{zkml_metrics['witness_generation']['avg']:.1f} ms",
+        "EZKL witness processing",
         "warning"
     )
 with perf_col2:
     metric_card(
-        "Avg Verification Latency",
-        f"{zkml_metrics['average_verification_latency_ms']:.1f} ms",
-        "EZKL cryptographic verification",
-        "success"
+        "Avg Proving Latency (Audited)",
+        f"{zkml_metrics['proof_generation']['avg']:.1f} ms",
+        "EZKL proof generation",
+        "warning"
     )
 with perf_col3:
     metric_card(
-        "Proving Health",
-        f"{zkml_metrics['proof_success_count']} OK",
-        f"{zkml_metrics['proof_failure_count']} FAILED",
-        "normal"
+        "Avg Verification Latency (Audited)",
+        f"{zkml_metrics['verification']['avg']:.1f} ms",
+        "EZKL verification",
+        "success"
     )
 with perf_col4:
     metric_card(
-        "Verification Health",
-        f"{zkml_metrics['verification_success_count']} OK",
-        f"{zkml_metrics['verification_failure_count']} FAILED",
-        "danger"
+        "Avg Pipeline Latency (Audited)",
+        f"{zkml_metrics['total_pipeline']['avg']:.1f} ms",
+        "Total zkML pipeline run time",
+        "normal"
     )
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -236,18 +283,18 @@ with vk_col1:
     )
 
 with vk_col2:
-    status_kind = "success" if verification["verified"] else "danger"
+    status_kind = "success" if latest_verified else "danger"
     cyber_card(
-        "Current Verification Result",
+        "Latest Audited Verification Result",
         f"""
-        Status: {verification["status"]}<br>
-        Verified: {verification["verified"]}<br>
-        Proof path: {verification.get("proof_path", "-")}<br>
-        Error: {verification.get("error") or "-"}
+        Status: {"VERIFIED" if latest_verified else "NOT_AVAILABLE"}<br>
+        Verified: {st_verified}<br>
+        Proof Path: {latest_verified.get('proof_archive_path', '-') if latest_verified else "-"}<br>
+        Error: None
         """,
         min_height="240px",
     )
-    status_badge(verification["status"], status_kind)
+    status_badge("VERIFIED" if latest_verified else "NOT_AVAILABLE", status_kind)
 
 section_title("PROOF-RELATED GOVERNANCE METRICS")
 

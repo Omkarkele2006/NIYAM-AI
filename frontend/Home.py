@@ -70,7 +70,7 @@ col1, col2, col3, col4 = st.columns(4)
 with col1:
 
     metric_card(
-        "Total Actions",
+        "Total Actions (Audited)",
         str(metrics["total_actions"]),
         "Audit log records",
         "success"
@@ -80,7 +80,7 @@ with col1:
 with col2:
 
     metric_card(
-        "Executed Actions",
+        "Executed Actions (Audited)",
         str(metrics["executed_actions"]),
         "Governed executions",
         "danger"
@@ -90,7 +90,7 @@ with col2:
 with col3:
 
     metric_card(
-        "Blocked Actions",
+        "Blocked Actions (Audited)",
         str(metrics["blocked_actions"]),
         "Policy or proof blocks",
         "normal"
@@ -100,13 +100,11 @@ with col3:
 with col4:
 
     metric_card(
-        "Historical Proof Events",
+        "Historical Proof Events (Historical)",
         str(metrics["historical_verified_proof_events"]),
         "Audit records with verification=True (see Proof Explorer for live status)",
         "warning"
     )
-
-
 # =========================================================
 # OVERVIEW SECTION
 # =========================================================

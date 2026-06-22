@@ -74,7 +74,7 @@ col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     metric_card(
-        "Blocked Actions",
+        "Blocked Actions (Audited)",
         str(summary["blocked_actions"]),
         f"{summary['blocked_rate']}% of audit events",
         "danger",
@@ -82,7 +82,7 @@ with col1:
 
 with col2:
     metric_card(
-        "Executed Actions",
+        "Executed Actions (Audited)",
         str(summary["executed_actions"]),
         f"{summary['executed_rate']}% execution rate",
         "success",
@@ -90,7 +90,7 @@ with col2:
 
 with col3:
     metric_card(
-        "Verified Proofs",
+        "Verified Proofs (Historical)",
         str(verification["verified"]),
         f"{verification['verification_rate']}% verification rate",
         "normal",
@@ -98,7 +98,7 @@ with col3:
 
 with col4:
     metric_card(
-        "Recent Threats",
+        "Recent Threats (Audited)",
         str(len(recent_threats)),
         "Blocked in last 24 hours",
         "warning",

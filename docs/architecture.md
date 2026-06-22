@@ -345,7 +345,16 @@ Policy operations are captured dynamically within the SQLite audit database (`au
 
 ## Governance Control Center & Explainability Dashboard
 
-To expose the underlying governance features to administrators and operators, NIYAM-AI provides a premium Streamlit-based **Governance Control Center**.
+To expose the underlying governance features to administrators and operators, NIYAM-AI provides a premium Streamlit-based **Governance Control Center**. All dashboard pages derive state from a single source of truth (the SQLite `audit.db` database) mediated by the central **Governance Service Layer** to prevent contradicting local states.
+
+### 0. Centralized Observability & Telemetry Service Layer
+*   **File Location**: [governance_service.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/schema/governance_service.py)
+*   **Observability Methods**:
+    *   `get_latest_verified_execution()`: Retrieves the latest audited execution where the ZK proof was successfully verified.
+    *   `get_execution_forensics(execution_id)`: Merges execution telemetry, artifact hashes (proof, witness, input), and latencies, and computes the audit chain status for a specific execution.
+    *   `get_proof_telemetry()`: Computes aggregate statistics (average/p95 latency) for witness generation, proof generation, and verification phases, and lists recent runs.
+    *   `get_decision_timeline(execution_id)`: Reconstructs the complete ordered chronological sequence of audit events for a session.
+*   **Metric Label Unification**: System metrics are clearly labeled by their underlying source: `(Audited)` for database counts, `(Historical)` for historical migrations/logs, `(Runtime)` for live operational checks, and `(Artifact)` for file existence and size.
 
 ### 1. Unified Health Control Center (Overview)
 *   **File Location**: [1_Governance_Overview.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/frontend/pages/1_Governance_Overview.py)
@@ -364,14 +373,15 @@ To expose the underlying governance features to administrators and operators, NI
 ### 3. Chronological Decision Explorer
 *   **File Location**: [3_Decision_Explorer.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/frontend/pages/3_Decision_Explorer.py)
 *   **Capabilities**:
-    *   Traces selected tool execution attempts from the initial request down to the final commit.
-    *   Renders a vertical chronological flowchart displaying FSM state transitions and security checks (Policy Loading -> Schema Validation -> zkML Proving -> ZK Verification -> Process Execution -> Hash Ledger Commit).
+    *   Traces selected tool execution attempts from the initial request down to the final commit using `get_decision_timeline(execution_id)`.
+    *   Renders a vertical chronological flowchart displaying FSM state transitions and security checks (Policy Loading -> Schema Validation -> zkML Proving -> ZK Verification -> Process Execution -> Hash Ledger Commit) dynamically reconstructed from the database.
+    *   Exposes a **View Execution Forensics** expander leveraging `get_execution_forensics(execution_id)` to display absolute hashes (proof, witness, input), detailed pipeline phase latencies, and ledger chain validity.
 
 ### 4. Live Monitor & Latency Metrics
 *   **File Locations**: [4_Live_Monitor.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/frontend/pages/4_Live_Monitor.py) and [6_Proof_Explorer.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/frontend/pages/6_Proof_Explorer.py)
 *   **Capabilities**:
     *   Tracks execution states in real-time to report FSM sandbox containment counts.
-    *   Displays latency monitors plotting witness processing times and verification throughput statistics.
+    *   Displays latency monitors plotting witness processing times and verification throughput statistics from the central observability APIs.
 
 ### 5. Audit Chain Verification Widget
 *   **File Location**: [7_Audit_Logs.py](file:///c:/IMP/VIT/SY/SEM_2/EDI/NiyamAI-Proj-Code-Original/frontend/pages/7_Audit_Logs.py)
