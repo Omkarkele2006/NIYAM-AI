@@ -44,7 +44,7 @@ from utils.orchestration_parser import (
     get_session_list,
     get_session_proposals,
 )
-from utils.theme import configure_page, load_global_css, section_title
+from utils.theme import configure_page, load_global_css, section_title, page_header
 from utils.time_utils import format_timestamp_short, format_timestamp_table
 
 
@@ -70,13 +70,13 @@ def _format_ts_full(value: str | None) -> str:
 
 
 def _status_color(status: str | None) -> str:
-    """Map a governance status string to a neon color."""
+    """Map a governance status string to an enterprise color."""
     mapping = {
-        "EXECUTED": "#00FF88",
-        "BLOCKED":  "#FF3B5C",
-        "ERROR":    "#FFC857",
+        "EXECUTED": "#10B981",
+        "BLOCKED":  "#F43F5E",
+        "ERROR":    "#F59E0B",
     }
-    return mapping.get(str(status).upper() if status else "", "#00D1FF")
+    return mapping.get(str(status).upper() if status else "", "#22D3EE")
 
 
 def _verification_label(row: dict[str, Any]) -> str:
@@ -105,23 +105,19 @@ def _proposal_card(row: dict[str, Any]) -> None:
 
     st.markdown(
         f"""
-<div style="background:rgba(18,26,43,0.78);border-left:4px solid {color};
-border-radius:12px;padding:0.95rem 1.1rem;margin-bottom:0.75rem;
-border-top:1px solid rgba(255,255,255,0.08);
-border-right:1px solid rgba(255,255,255,0.08);
-border-bottom:1px solid rgba(255,255,255,0.08);">
+<div style="background:var(--bg-card);border-left:3px solid {color};border:1px solid var(--border);border-left:3px solid {color};border-radius:10px;padding:0.85rem 1rem;margin-bottom:0.6rem;">
   <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;">
-    <strong style="color:{color};">{status}</strong>
-    <span style="color:#93A4C3;font-size:0.82rem;">{_format_ts(row.get("timestamp"))}</span>
+    <strong style="color:{color};font-size:0.85rem;">{status}</strong>
+    <span style="color:#6B7280;font-size:0.78rem;">{_format_ts(row.get('timestamp'))}</span>
   </div>
-  <div style="color:#E6F1FF;margin-top:0.45rem;">
-    Tool: <b>{row.get("tool", "-")}</b>
+  <div style="color:#E6E9EF;margin-top:0.4rem;font-size:0.88rem;">
+    Tool: <b>{row.get('tool', '-')}</b>
   </div>
-  <div style="color:#93A4C3;font-size:0.85rem;margin-top:0.35rem;">
-    ActionHash: {row.get("action_hash", "-")}
+  <div style="color:#9AA3B2;font-size:0.8rem;margin-top:0.3rem;">
+    ActionHash: {row.get('action_hash', '-')}
   </div>
-  <div style="color:#93A4C3;font-size:0.85rem;margin-top:0.35rem;">
-    Proof: {row.get("verification", "-")} &nbsp;|&nbsp; {reason}
+  <div style="color:#9AA3B2;font-size:0.8rem;margin-top:0.3rem;">
+    Proof: {row.get('verification', '-')} &nbsp;|&nbsp; {reason}
   </div>
 </div>
 """,
@@ -136,11 +132,11 @@ border-bottom:1px solid rgba(255,255,255,0.08);">
 
 def _pipeline_stage(label: str, state: str, status: str = "active", index: int = 1) -> str:
     color_map = {
-        "active":  "#00D1FF",
-        "success": "#00FF88",
-        "warning": "#FFC857",
-        "danger":  "#FF3B5C",
-        "idle":    "#93A4C3",
+        "active":  "#22D3EE",
+        "success": "#10B981",
+        "warning": "#F59E0B",
+        "danger":  "#F43F5E",
+        "idle":    "#4B5563",
     }
     color = color_map.get(status, "#00D1FF")
     return f"""
@@ -275,9 +271,12 @@ _full_session_ids: list[str] = sorted(
 # SECTION 1: Header
 # ---------------------------------------------------------------------------
 
-section_title("ORCHESTRATION GOVERNANCE MONITOR")
-status_badge("READ-ONLY OBSERVABILITY", "info")
-st.markdown("<br>", unsafe_allow_html=True)
+page_header(
+    "Orchestration Monitor",
+    "Governance proposal lifecycle, session analytics, and orchestration chain observability",
+    badge_label="READ-ONLY",
+    badge_kind="muted",
+)
 
 
 # ---------------------------------------------------------------------------

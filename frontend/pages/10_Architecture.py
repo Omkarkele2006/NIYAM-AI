@@ -15,19 +15,19 @@ for path in (REPO_ROOT, FRONTEND_ROOT):
         sys.path.insert(0, str(path))
 
 from components.cards import cyber_card, metric_card, status_badge
-from utils.theme import configure_page, load_global_css, section_title
+from utils.theme import configure_page, load_global_css, section_title, page_header
 
 
 ARCHITECTURE_IMAGE = FRONTEND_ROOT / "assets" / "images" / "niyam_architecture.png"
 
 
-def _pipeline_stage(label: str, detail: str, color: str = "#00D1FF") -> str:
+def _pipeline_stage(label: str, detail: str, color: str = "#22D3EE") -> str:
     """Return one compact lifecycle stage for the architecture walkthrough."""
 
     return f"""
-<div style="flex:1; min-width:150px; background:rgba(18,26,43,0.82); border:1px solid {color}; border-radius:14px; padding:1rem; min-height:118px;">
-<div style="color:{color}; font-weight:700; font-size:0.92rem;">{label}</div>
-<div style="color:#93A4C3; font-size:0.8rem; line-height:1.45; margin-top:0.55rem;">{detail}</div>
+<div style="flex:1; min-width:150px; background:var(--bg-card); border:1px solid {color}22; border-top:2px solid {color}; border-radius:10px; padding:1rem; min-height:110px;">
+<div style="color:{color}; font-weight:600; font-size:0.88rem;">{label}</div>
+<div style="color:#9AA3B2; font-size:0.78rem; line-height:1.45; margin-top:0.5rem;">{detail}</div>
 </div>
 """
 
@@ -48,8 +48,12 @@ def _module_card(module_name: str, responsibility: str, signal: str) -> None:
 configure_page("Architecture | NIYAM-AI")
 load_global_css()
 
-section_title("NIYAM-AI SYSTEM ARCHITECTURE")
-status_badge("VERIFIABLE AI GOVERNANCE", "info")
+page_header(
+    "System Architecture",
+    "NIYAM-AI Verifiable AI Governance Platform — component map and execution lifecycle",
+    badge_label="GOVERNANCE PLATFORM",
+    badge_kind="purple",
+)
 
 hero_col1, hero_col2, hero_col3, hero_col4 = st.columns(4)
 
@@ -180,16 +184,16 @@ section_title("HIGH-LEVEL GOVERNANCE LIFECYCLE")
 
 lifecycle_html = f"""
 <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:stretch; margin-bottom:1.2rem;">
-{_pipeline_stage("Prompt", "User request enters the governance perimeter.", "#00D1FF")}
-{_pipeline_stage("Intent Contract", "Allowed and forbidden capabilities are bound to a session.", "#00FF88")}
-{_pipeline_stage("Governance Validation", "Control flow and intent constraints are checked.", "#FFC857")}
-{_pipeline_stage("Tool Gate", "Requested tool is authorized or blocked.", "#FF3B5C")}
-{_pipeline_stage("zkML Features", "ActionHash, IntentHash, tool, and payload signals become model inputs.", "#9D4EDD")}
-{_pipeline_stage("Proof Generation", "EZKL witness and proof artifacts are produced.", "#00D1FF")}
-{_pipeline_stage("Verification", "Proof and verification key integrity are checked.", "#00FF88")}
-{_pipeline_stage("Secure Execution", "Only verified governed actions execute.", "#FFC857")}
-{_pipeline_stage("Immutable Audit", "Governance outcome is written to the audit trail.", "#00D1FF")}
-{_pipeline_stage("Observability", "Frontend pages expose operational trust signals.", "#9D4EDD")}
+{_pipeline_stage('Prompt', 'User request enters the governance perimeter.', '#22D3EE')}
+{_pipeline_stage('Intent Contract', 'Allowed and forbidden capabilities are bound to a session.', '#10B981')}
+{_pipeline_stage('Governance Validation', 'Control flow and intent constraints are checked.', '#F59E0B')}
+{_pipeline_stage('Tool Gate', 'Requested tool is authorized or blocked.', '#F43F5E')}
+{_pipeline_stage('zkML Features', 'ActionHash, IntentHash, tool, and payload signals become model inputs.', '#818CF8')}
+{_pipeline_stage('Proof Generation', 'EZKL witness and proof artifacts are produced.', '#22D3EE')}
+{_pipeline_stage('Verification', 'Proof and verification key integrity are checked.', '#10B981')}
+{_pipeline_stage('Secure Execution', 'Only verified governed actions execute.', '#F59E0B')}
+{_pipeline_stage('Immutable Audit', 'Governance outcome is written to the audit trail.', '#22D3EE')}
+{_pipeline_stage('Observability', 'Frontend pages expose operational trust signals.', '#818CF8')}
 </div>
 """
 st.markdown(lifecycle_html, unsafe_allow_html=True)
@@ -215,13 +219,13 @@ fig_lifecycle = px.scatter(
     text="stage",
     title="Prompt to Verifiable Execution Flow",
     labels={"order": "Execution Order", "y": ""},
-    color_discrete_sequence=["#00D1FF", "#00FF88", "#FFC857", "#FF3B5C", "#9D4EDD"],
+    color_discrete_sequence=["#22D3EE", "#10B981", "#F59E0B", "#F43F5E", "#818CF8"],
 )
 fig_lifecycle.update_traces(marker_size=18, textposition="top center")
 fig_lifecycle.update_layout(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
-    font_color="#E6F1FF",
+    font_color="#E6E9EF",
     height=320,
     yaxis={"visible": False},
 )
@@ -327,12 +331,12 @@ fig_security = px.bar(
     orientation="h",
     title="Defense-in-Depth Governance Layers",
     labels={"coverage": "Implemented Layer", "layer": "Security Layer"},
-    color_discrete_sequence=["#00D1FF", "#00FF88", "#FFC857", "#FF3B5C", "#9D4EDD"],
+    color_discrete_sequence=["#22D3EE", "#10B981", "#F59E0B", "#F43F5E", "#818CF8"],
 )
 fig_security.update_layout(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
-    font_color="#E6F1FF",
+    font_color="#E6E9EF",
     height=380,
     xaxis={"visible": False},
 )

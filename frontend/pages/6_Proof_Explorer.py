@@ -27,7 +27,7 @@ from utils.proof_reader import (
     get_verification_status,
     get_witness_artifact,
 )
-from utils.theme import configure_page, load_global_css, section_title
+from utils.theme import configure_page, load_global_css, section_title, page_header
 from utils.time_utils import format_timestamp_table, parse_utc_timestamp
 
 
@@ -76,8 +76,12 @@ def _verification_label(row: dict[str, Any]) -> str:
 configure_page("Proof Explorer | NIYAM-AI")
 load_global_css()
 
-section_title("ZKML PROOF EXPLORER")
-status_badge("PROOF OBSERVABILITY", "info")
+page_header(
+    "zkML Proof Explorer",
+    "Cryptographic proof artifacts, telemetry, verification status, and audit evidence",
+    badge_label="PROOF OBSERVABILITY",
+    badge_kind="purple",
+)
 
 # Sourcing everything from centralized governance service
 from schema.governance_service import (
@@ -315,9 +319,9 @@ with chart_col1:
         labels={"status": "Verification State", "count": "Records"},
         color="status",
         color_discrete_map={
-            "Verified": "#00FF88",
-            "Failed": "#FF3B5C",
-            "Missing": "#93A4C3",
+            "Verified": "#10B981",
+            "Failed":   "#F43F5E",
+            "Missing":  "#4B5563",
         },
     )
     fig_verification.update_layout(
@@ -342,7 +346,7 @@ with chart_col2:
         title="Proof System Artifact Sizes",
         labels={"artifact": "Artifact", "size_bytes": "Bytes"},
         color="artifact",
-        color_discrete_sequence=["#00D1FF", "#9D4EDD", "#FFC857"],
+        color_discrete_sequence=["#22D3EE", "#818CF8", "#F59E0B"],
     )
     fig_artifacts.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
@@ -387,10 +391,10 @@ if timeline_rows:
         title="Proof Events Over Time",
         labels={"minute": "Time", "events": "Events", "verification": "Proof State"},
         color_discrete_map={
-            "VERIFIED": "#00FF88",
-            "FAILED": "#FF3B5C",
-            "PROOF_PRESENT": "#00D1FF",
-            "NOT_AVAILABLE": "#93A4C3",
+            "VERIFIED":      "#10B981",
+            "FAILED":        "#F43F5E",
+            "PROOF_PRESENT": "#22D3EE",
+            "NOT_AVAILABLE": "#4B5563",
         },
     )
     fig_timeline.update_layout(

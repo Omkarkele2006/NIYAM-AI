@@ -25,7 +25,7 @@ from utils.audit_parser import (
     get_tool_usage_frequency,
     get_verification_statistics,
 )
-from utils.theme import configure_page, load_global_css, section_title
+from utils.theme import configure_page, load_global_css, section_title, page_header
 from utils.time_utils import format_timestamp_table
 
 
@@ -50,8 +50,13 @@ def _short_hash(value: str | None, length: int = 12) -> str:
 configure_page("Threat Analytics | NIYAM-AI")
 load_global_css()
 
-section_title("THREAT ANALYTICS")
-status_badge("REAL GOVERNANCE DATA", "info")
+page_header(
+    "Threat Analytics",
+    "Blocked action trends, tool usage, verification coverage, and recent threat activity",
+    badge_label="LIVE DATA",
+    badge_kind="danger",
+)
+
 
 summary = get_audit_summary_metrics()
 verification = get_verification_statistics()
@@ -122,7 +127,7 @@ with chart_col1:
             title="Blocked Actions by Tool",
             labels={"count": "Blocked Events", "name": "Tool"},
             color="count",
-            color_continuous_scale=["#00D1FF", "#FF3B5C"],
+            color_continuous_scale=["#22D3EE", "#F43F5E"],
         )
         fig_blocked_tools.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
@@ -148,7 +153,7 @@ with chart_col2:
             values="count",
             title="Block Reasons",
             hole=0.45,
-            color_discrete_sequence=["#FF3B5C", "#FFC857", "#00D1FF", "#9D4EDD"],
+            color_discrete_sequence=["#F43F5E", "#F59E0B", "#22D3EE", "#818CF8"],
         )
         fig_reasons.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
@@ -174,7 +179,7 @@ if tool_usage:
         title="Governed Tool Calls",
         labels={"tool_name": "Tool", "count": "Audit Events"},
         color="count",
-        color_continuous_scale=["#121A2B", "#00D1FF"],
+        color_continuous_scale=["#11141B", "#22D3EE"],
     )
     fig_tool_usage.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
@@ -209,9 +214,9 @@ with verify_col1:
         labels={"status": "Verification Status", "count": "Records"},
         color="status",
         color_discrete_map={
-            "Verified": "#00FF88",
-            "Failed": "#FF3B5C",
-            "Missing": "#93A4C3",
+            "Verified": "#10B981",
+            "Failed":   "#F43F5E",
+            "Missing":  "#4B5563",
         },
     )
     fig_verification.update_layout(

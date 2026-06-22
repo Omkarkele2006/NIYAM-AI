@@ -36,7 +36,7 @@ for _path in (REPO_ROOT, FRONTEND_ROOT):
 
 from components.cards import cyber_card, metric_card, status_badge
 from schema.governance_service import load_audit_logs
-from utils.theme import configure_page, load_global_css, section_title
+from utils.theme import configure_page, load_global_css, section_title, page_header
 
 
 # ---------------------------------------------------------------------------
@@ -222,18 +222,18 @@ def _build_and_run(user_prompt: str, profile_name: str) -> dict[str, Any]:
 
 def _status_color(status: str) -> str:
     return {
-        "COMPLETED": "#00FF88", "EXECUTED": "#00FF88",
-        "BLOCKED": "#FF3B5C", "REJECTED": "#FF3B5C",
-        "ERROR": "#FFC857",
-        "NO_PROPOSALS": "#93A4C3", "PARTIAL": "#FFC857",
-    }.get(status, "#00D1FF")
+        "COMPLETED": "#10B981", "EXECUTED": "#10B981",
+        "BLOCKED": "#F43F5E",  "REJECTED": "#F43F5E",
+        "ERROR":    "#F59E0B",
+        "NO_PROPOSALS": "#4B5563", "PARTIAL": "#F59E0B",
+    }.get(status, "#22D3EE")
 
 
 def _status_type(status: str) -> str:
     return {
         "COMPLETED": "success", "EXECUTED": "success",
-        "BLOCKED": "danger", "REJECTED": "danger",
-        "ERROR": "warning",
+        "BLOCKED":   "danger",  "REJECTED": "danger",
+        "ERROR":     "warning",
     }.get(status, "info")
 
 
@@ -243,44 +243,35 @@ def _render_proposal_card(rec: dict[str, Any]) -> None:
     risk_str = ", ".join(rec.get("risk_notes", [])) or "none"
 
     st.markdown(f"""
-<div style="background:rgba(18,26,43,0.78);border-left:4px solid {color};
-border-radius:12px;padding:1rem 1.1rem;margin-bottom:0.75rem;
-border:1px solid rgba(255,255,255,0.08);">
+<div style="background:var(--bg-card);border:1px solid var(--border);border-left:3px solid {color};
+border-radius:10px;padding:0.9rem 1.05rem;margin-bottom:0.65rem;">
   <div style="display:flex;justify-content:space-between;align-items:center;">
-    <strong style="color:{color};font-size:1rem;">{rec['status']}</strong>
-    <span style="color:#93A4C3;font-size:0.8rem;">ID: {rec['proposal_id']}</span>
+    <strong style="color:{color};font-size:0.88rem;">{rec['status']}</strong>
+    <span style="color:#6B7280;font-size:0.75rem;">ID: {rec['proposal_id']}</span>
   </div>
-  <div style="color:#E6F1FF;margin-top:0.5rem;">
+  <div style="color:#E6E9EF;margin-top:0.45rem;font-size:0.9rem;">
     Tool: <b>{rec['tool_name']}</b>
   </div>
-  <div style="color:#93A4C3;font-size:0.85rem;margin-top:0.35rem;">
-    {rec['rationale']}
-  </div>
-  <div style="color:#93A4C3;font-size:0.82rem;margin-top:0.35rem;">
-    Risk: {risk_str}
-  </div>
-  {"<div style='color:#FF3B5C;font-size:0.85rem;margin-top:0.45rem;'>⚠ " + rec['error'] + "</div>" if rec.get('error') else ""}
+  <div style="color:#9AA3B2;font-size:0.82rem;margin-top:0.3rem;">{rec['rationale']}</div>
+  <div style="color:#6B7280;font-size:0.78rem;margin-top:0.3rem;">Risk: {risk_str}</div>
+  {"<div style='color:#F43F5E;font-size:0.82rem;margin-top:0.4rem;'>⚠ " + rec['error'] + "</div>" if rec.get('error') else ""}
 </div>
 """, unsafe_allow_html=True)
 
 
 def _render_pipeline_stage(label: str, passed: bool, blocked: bool = False) -> str:
-    """Return HTML for one pipeline stage indicator."""
+    """Return HTML for one pipeline stage indicator using enterprise CSS classes."""
     if blocked:
-        color, icon = "#FF3B5C", "✗"
+        cls, icon = "block", "✕"
     elif passed:
-        color, icon = "#00FF88", "✓"
+        cls, icon = "pass", "✓"
     else:
-        color, icon = "#93A4C3", "○"
+        cls, icon = "pending", "○"
 
     return f"""
-<div style="text-align:center;flex:1;min-width:80px;">
-  <div style="width:28px;height:28px;border-radius:50%;background:{color};
-  margin:0 auto 0.4rem;display:flex;align-items:center;justify-content:center;
-  font-size:0.85rem;font-weight:700;color:#0B1020;
-  box-shadow:0 0 12px {color}40;">{icon}</div>
-  <div style="color:{color};font-size:0.72rem;font-weight:600;
-  letter-spacing:0.04em;">{label}</div>
+<div class="pipeline-stage {cls}">
+  <div class="stage-dot {cls}">{icon}</div>
+  <div class="stage-label">{label}</div>
 </div>"""
 
 
@@ -291,9 +282,12 @@ def _render_pipeline_stage(label: str, passed: bool, blocked: bool = False) -> s
 configure_page("Governed Execution | NIYAM-AI")
 load_global_css()
 
-section_title("GOVERNED EXECUTION CONSOLE")
-status_badge("PROOF-VERIFIED EXECUTION", "info")
-st.markdown("<br>", unsafe_allow_html=True)
+page_header(
+    "Governed Execution Console",
+    "Every prompt passes through the full interceptor pipeline: Intent → Proof → Verify → Execute",
+    badge_label="PROOF-GATED EXECUTION",
+    badge_kind="success",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -451,13 +445,8 @@ if result:
     ])
 
     st.markdown(f"""
-<div style="background:rgba(18,26,43,0.82);border:1px solid rgba(0,209,255,0.18);
-border-radius:16px;padding:1.2rem;margin-bottom:1rem;
-box-shadow:0 4px 24px rgba(0,0,0,0.2);">
-  <div style="display:flex;justify-content:space-around;align-items:flex-start;
-  gap:0.5rem;flex-wrap:wrap;">
-    {stages_html}
-  </div>
+<div class="pipeline-trace">
+  {stages_html}
 </div>
 """, unsafe_allow_html=True)
 

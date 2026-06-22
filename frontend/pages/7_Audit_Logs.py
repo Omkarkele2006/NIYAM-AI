@@ -25,7 +25,7 @@ from utils.audit_parser import (
     get_session_statistics,
     get_verification_statistics,
 )
-from utils.theme import configure_page, load_global_css, section_title
+from utils.theme import configure_page, load_global_css, section_title, page_header
 from utils.time_utils import format_timestamp_table, parse_utc_timestamp
 
 
@@ -99,8 +99,12 @@ def _table_rows(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
 configure_page("Audit Logs | NIYAM-AI")
 load_global_css()
 
-section_title("GOVERNANCE AUDIT LOGS")
-status_badge("APPEND-ONLY TRACE", "info")
+page_header(
+    "Governance Audit Logs",
+    "Searchable append-only governance event ledger with hash-chain integrity verification",
+    badge_label="APPEND-ONLY",
+    badge_kind="accent",
+)
 
 logs = load_audit_logs()
 logs = sorted(
@@ -258,10 +262,10 @@ with tab_logs:
                 title="Governance Events Over Time",
                 labels={"minute": "Time", "events": "Events", "status": "Status"},
                 color_discrete_map={
-                    "EXECUTED": "#00FF88",
-                    "BLOCKED": "#FF3B5C",
-                    "ERROR": "#FFC857",
-                    "SAFE": "#00D1FF",
+                    "EXECUTED": "#10B981",
+                    "BLOCKED": "#F43F5E",
+                    "ERROR": "#F59E0B",
+                    "SAFE": "#22D3EE",
                 },
             )
             fig_timeline.update_layout(
@@ -297,9 +301,9 @@ with tab_logs:
                 labels={"status": "Proof Status", "count": "Records"},
                 color="status",
                 color_discrete_map={
-                    "Verified": "#00FF88",
-                    "Failed": "#FF3B5C",
-                    "Missing": "#93A4C3",
+                    "Verified": "#10B981",
+                    "Failed": "#F43F5E",
+                    "Missing": "#4B5563",
                 },
             )
             fig_verification.update_layout(

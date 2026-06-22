@@ -8,30 +8,29 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from schema.governance_service import load_audit_logs, get_decision_timeline, get_execution_forensics
-from utils.theme import configure_page, load_global_css, section_title, cyber_header
+from utils.theme import configure_page, load_global_css, section_title, page_header
 from components.cards import cyber_card, status_badge
 from utils.time_utils import format_timestamp_short
 
 configure_page("Decision Explorer | NIYAM-AI")
 load_global_css()
 
-cyber_header(
-    "DECISION EXPLORER",
-    "Explainable AI governance timeline and verification audit trail"
+page_header(
+    "Decision Explorer",
+    "Explainable AI governance timeline and verification audit trail",
+    badge_label="TRACEABILITY",
+    badge_kind="accent",
 )
 
-status_badge("GOVERNANCE TRACEABILITY SYSTEM", "success")
-
-st.markdown("<br>", unsafe_allow_html=True)
 
 # Helper to render styled timeline steps
 def render_timeline_step(index: int, label: str, state: str, status: str, duration: float | None = None):
     # status: "success" (green), "danger" (red), "warning" (yellow), "idle" (grey)
     colors = {
-        "success": {"border": "#00FF88", "bg": "rgba(0, 255, 136, 0.08)", "text": "#00FF88"},
-        "danger": {"border": "#FF3B5C", "bg": "rgba(255, 59, 92, 0.08)", "text": "#FF3B5C"},
-        "warning": {"border": "#FFC857", "bg": "rgba(255, 200, 87, 0.08)", "text": "#FFC857"},
-        "idle": {"border": "#4F6380", "bg": "rgba(79, 99, 128, 0.08)", "text": "#93A4C3"}
+        "success": {"border": "#10B981", "bg": "rgba(16,185,129,0.07)",  "text": "#10B981"},
+        "danger":  {"border": "#F43F5E", "bg": "rgba(244,63,94,0.07)",   "text": "#F43F5E"},
+        "warning": {"border": "#F59E0B", "bg": "rgba(245,158,11,0.07)",  "text": "#F59E0B"},
+        "idle":    {"border": "#2A3040", "bg": "rgba(42,48,64,0.40)",    "text": "#9AA3B2"}
     }
     c = colors.get(status, colors["idle"])
     dur_str = f" ({duration:.1f} ms)" if duration is not None else ""
@@ -50,11 +49,11 @@ def render_timeline_step(index: int, label: str, state: str, status: str, durati
             border-radius: 8px;
         ">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-family:'Orbitron', sans-serif; font-size:0.75rem; color:#93A4C3;">STEP {index:02d}</span>
-                <span style="font-size:0.8rem; font-weight:700; color:{c['text']}; text-transform:uppercase;">{status}</span>
+                <span style="font-size:0.7rem; font-weight:600; letter-spacing:0.08em; color:#6B7280; text-transform:uppercase;">STEP {index:02d}</span>
+                <span style="font-size:0.75rem; font-weight:700; color:{c['text']}; text-transform:uppercase;">{status}</span>
             </div>
-            <div style="color:#E6F1FF; font-weight:700; font-size:0.95rem; margin-top:0.35rem;">{label}{dur_str}</div>
-            <div style="color:#93A4C3; font-size:0.85rem; margin-top:0.25rem;">{state}</div>
+            <div style="color:#E6E9EF; font-weight:600; font-size:0.9rem; margin-top:0.35rem;">{label}{dur_str}</div>
+            <div style="color:#9AA3B2; font-size:0.82rem; margin-top:0.25rem;">{state}</div>
         </div>
         """,
         unsafe_allow_html=True

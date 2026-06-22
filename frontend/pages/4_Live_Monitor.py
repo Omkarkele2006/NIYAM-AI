@@ -31,7 +31,7 @@ from utils.proof_reader import (
     get_verification_key_metadata,
     get_witness_artifact,
 )
-from utils.theme import configure_page, load_global_css, section_title
+from utils.theme import configure_page, load_global_css, section_title, page_header
 from utils.time_utils import format_timestamp_short, parse_utc_timestamp
 
 
@@ -50,18 +50,18 @@ def _short_value(value: str | None, length: int = 12) -> str:
 
 
 def _status_color(status: str | None) -> str:
-    """Map event status to a cyber color."""
+    """Map event status to an enterprise color."""
 
     if status == "EXECUTED":
-        return "#00FF88"
+        return "#10B981"
 
     if status == "BLOCKED":
-        return "#FF3B5C"
+        return "#F43F5E"
 
     if status == "ERROR":
-        return "#FFC857"
+        return "#F59E0B"
 
-    return "#00D1FF"
+    return "#22D3EE"
 
 
 def _event_card(row: dict[str, Any]) -> None:
@@ -73,14 +73,14 @@ def _event_card(row: dict[str, Any]) -> None:
 
     st.markdown(
         f"""
-<div style="background: rgba(18,26,43,0.78); border-left: 4px solid {color}; border-radius: 12px; padding: 0.95rem 1.1rem; margin-bottom: 0.75rem; border-top: 1px solid rgba(255,255,255,0.08); border-right: 1px solid rgba(255,255,255,0.08); border-bottom: 1px solid rgba(255,255,255,0.08);">
-<div style="display:flex; justify-content:space-between; gap:1rem; align-items:center;">
-<strong style="color:{color};">{status}</strong>
-<span style="color:#93A4C3; font-size:0.82rem;">{_format_timestamp(row.get("timestamp"))}</span>
+<div style="background:var(--bg-card);border-left:3px solid {color};border:1px solid var(--border);border-left:3px solid {color};border-radius:10px;padding:0.85rem 1rem;margin-bottom:0.6rem;">
+<div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;">
+<strong style="color:{color};font-size:0.85rem;">{status}</strong>
+<span style="color:#6B7280;font-size:0.78rem;">{_format_timestamp(row.get('timestamp'))}</span>
 </div>
-<div style="color:#E6F1FF; margin-top:0.45rem;">Tool: <b>{row.get("tool_name", "-")}</b></div>
-<div style="color:#93A4C3; font-size:0.85rem; margin-top:0.35rem;">ActionHash: {_short_value(row.get("action_hash"), 18)}</div>
-<div style="color:#93A4C3; font-size:0.85rem; margin-top:0.35rem;">{reason}</div>
+<div style="color:#E6E9EF;margin-top:0.4rem;font-size:0.88rem;">Tool: <b>{row.get('tool_name', '-')}</b></div>
+<div style="color:#9AA3B2;font-size:0.8rem;margin-top:0.3rem;">ActionHash: {_short_value(row.get('action_hash'), 18)}</div>
+<div style="color:#9AA3B2;font-size:0.8rem;margin-top:0.3rem;">{reason}</div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -158,16 +158,10 @@ def _render_governance_pipeline(
     position: relative;
     overflow: hidden;
     padding: 1.25rem;
-    margin-bottom: 1.45rem;
-    border: 1px solid rgba(0,209,255,0.18);
-    border-radius: 18px;
-    background:
-        linear-gradient(180deg, rgba(18,26,43,0.84), rgba(8,12,24,0.92)),
-        radial-gradient(circle at 18% 0%, rgba(0,209,255,0.12), transparent 34%),
-        radial-gradient(circle at 88% 20%, rgba(157,78,221,0.10), transparent 32%);
-    box-shadow:
-        0 10px 36px rgba(0,0,0,0.24),
-        inset 0 1px 0 rgba(255,255,255,0.04);
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-card);
 }}
 .gov-pipeline-shell::before {{
     content: "";
@@ -305,8 +299,12 @@ def _render_governance_pipeline(
 configure_page("Live Monitor | NIYAM-AI")
 load_global_css()
 
-section_title("LIVE GOVERNANCE MONITOR")
-status_badge("OPERATIONS ACTIVE", "success")
+page_header(
+    "Live Monitor",
+    "Realtime governance operations stream, proof health, and execution pipeline telemetry",
+    badge_label="OPERATIONS ACTIVE",
+    badge_kind="success",
+)
 
 refresh_col1, refresh_col2, refresh_col3 = st.columns([1, 1, 4])
 

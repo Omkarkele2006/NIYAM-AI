@@ -7,20 +7,18 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from schema.policy import PolicyRepository, compare_versions
-from utils.theme import configure_page, load_global_css, section_title, cyber_header
+from utils.theme import configure_page, load_global_css, section_title, page_header
 from components.cards import cyber_card, status_badge
 
 configure_page("Policy Explorer | NIYAM-AI")
 load_global_css()
 
-cyber_header(
-    "POLICY MANAGER",
-    "Inspect, validate, version, and compare intent-governance policies"
+page_header(
+    "Policy Manager",
+    "Inspect, validate, version, and compare intent-governance policies",
+    badge_label="READ-ONLY",
+    badge_kind="muted",
 )
-
-status_badge("READ-ONLY REPOSITORY VISIBILITY", "info")
-
-st.markdown("<br>", unsafe_allow_html=True)
 
 # Initialize policy repository
 repo = PolicyRepository()
@@ -129,18 +127,18 @@ with tab2:
                     has_changes = True
                     st.markdown("#### Allowed Tools Changes")
                     for t in diff["removed_allowed_tools"]:
-                        st.markdown(f"<span style='color:#FF3B5C;'>➖ Remove: `{t}`</span>", unsafe_allow_html=True)
+                        st.markdown(f"<span style='color:#F43F5E;'>➖ Remove: `{t}`</span>", unsafe_allow_html=True)
                     for t in diff["added_allowed_tools"]:
-                        st.markdown(f"<span style='color:#00FF88;'>➕ Add: `{t}`</span>", unsafe_allow_html=True)
+                        st.markdown(f"<span style='color:#10B981;'>➕ Add: `{t}`</span>", unsafe_allow_html=True)
                         
                 # 2. Forbidden Tools
                 if diff["added_forbidden_tools"] or diff["removed_forbidden_tools"]:
                     has_changes = True
                     st.markdown("#### Forbidden Tools Changes")
                     for t in diff["removed_forbidden_tools"]:
-                        st.markdown(f"<span style='color:#00FF88;'>➖ Remove (Unblock): `{t}`</span>", unsafe_allow_html=True)
+                        st.markdown(f"<span style='color:#10B981;'>➖ Remove (Unblock): `{t}`</span>", unsafe_allow_html=True)
                     for t in diff["added_forbidden_tools"]:
-                        st.markdown(f"<span style='color:#FF3B5C;'>➕ Add (Block): `{t}`</span>", unsafe_allow_html=True)
+                        st.markdown(f"<span style='color:#F43F5E;'>➕ Add (Block): `{t}`</span>", unsafe_allow_html=True)
                 
                 # 3. Status Changes
                 if "changed_status" in diff:
