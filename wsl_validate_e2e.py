@@ -146,25 +146,37 @@ print(f"\n{PASS} STAGE 4 PASSED — Feature vector extracted ({len(features)} fl
 section("STAGE 5+6: WITNESS GENERATION + PROOF GENERATION")
 
 import time
-from schema.zk_prover import generate_proof
+from schema.zk_prover import generate_proof, get_execution_durations
+from schema.orchestration.execution_runtime import derive_execution_id
+
+# Derive execution_id before proof generation just like the Interceptor
+execution_id = derive_execution_id(
+    action_hash=action_hash,
+    intent_hash=intent_hash,
+    proof_path="ephemeral_isolated",
+    timestamp_ns=time.time_ns()
+)
+
+exec_dir = REPO / "artifacts" / "executions" / execution_id
+exec_dir.mkdir(parents=True, exist_ok=True)
 
 print(f"{INFO} Writing input.json with features...")
-input_path = REPO / "input.json"
+input_path = exec_dir / "input.json"
 with open(input_path, "w") as f:
     json.dump({"input_data": [features]}, f)
 print(f"{INFO} input.json     : {input_path} ({input_path.stat().st_size} bytes)")
 
 print(f"{INFO} Calling generate_proof(features)...")
 t_start = time.monotonic()
-proof_path = generate_proof(features)
+proof_path = generate_proof(features, execution_id=execution_id, session_id=contract.session_id)
 t_elapsed = (time.monotonic() - t_start) * 1000
 
 if proof_path is None:
     print(f"{FAIL} Proof generation FAILED (generate_proof returned None)")
     sys.exit(1)
 
-proof_file = REPO / "proof.json"
-witness_file = REPO / "witness.json"
+proof_file = exec_dir / "proof.json"
+witness_file = exec_dir / "witness.json"
 
 proof_exists = proof_file.exists()
 witness_exists = witness_file.exists()
@@ -176,6 +188,11 @@ print(f"{INFO} witness.json   : {'EXISTS' if witness_exists else 'MISSING'} ({wi
 if not proof_exists or not witness_exists:
     print(f"{FAIL} Proof or witness artifact is missing after generation")
     sys.exit(1)
+
+# Retrieve individual witness & proof generation times
+durations = get_execution_durations(execution_id) or {}
+witness_generation_ms = durations.get("witness_generation_ms")
+proof_generation_ms = durations.get("proof_generation_ms")
 
 proof_hash = sha256_file(proof_file)
 witness_hash = sha256_file(witness_file)
@@ -196,7 +213,7 @@ from schema.verifier import verify_proof
 
 print(f"{INFO} Running verify_proof('{proof_path}')...")
 t_ver_start = time.monotonic()
-verified = verify_proof(proof_path)
+verified = verify_proof(proof_path, witness_path=str(witness_file))
 t_ver_elapsed = (time.monotonic() - t_ver_start) * 1000
 
 print(f"{INFO} ezkl verify    : {'SUCCESS (returncode=0)' if verified else 'FAILED (returncode!=0)'}")
@@ -217,18 +234,11 @@ section("STAGE 8: GOVERNED EXECUTION RUNTIME")
 from schema.orchestration.execution_runtime import (
     GovernedExecutionContext,
     GovernedExecutionRuntime,
-    derive_execution_id,
 )
 from schema.audit_logger import log_event
 
 def dummy_execute(tool_name, payload):
     return {"status": "ok", "tool": tool_name, "amount": payload.get("amount"), "recipient": payload.get("recipient")}
-
-execution_id = derive_execution_id(
-    action_hash=action_hash,
-    intent_hash=intent_hash,
-    proof_path=str(proof_path),
-)
 
 exec_context = GovernedExecutionContext(
     execution_id=execution_id,
@@ -282,9 +292,15 @@ log_event({
     "proof": str(proof_path),
     "proof_hash": proof_hash,
     "witness_hash": witness_hash,
+    "input_hash": input_hash,
+    "proof_archive_path": str(Path(proof_path).resolve()) if proof_path else None,
     "verification": True,
     "status": "EXECUTED",
     "execution_id": execution_id,
+    "witness_generation_ms": witness_generation_ms,
+    "proof_generation_ms": proof_generation_ms,
+    "verification_ms": t_ver_elapsed,
+    "total_proof_pipeline_ms": t_elapsed + t_ver_elapsed,
     "generation_duration_ms": t_elapsed,
     "verification_duration_ms": t_ver_elapsed,
 })

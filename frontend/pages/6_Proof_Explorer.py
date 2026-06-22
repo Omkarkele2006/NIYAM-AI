@@ -132,7 +132,7 @@ with metric_col3:
     metric_card(
         "Latest Audited Verification (Audited)",
         "VERIFIED" if st_verified else "NOT_AVAILABLE",
-        "Audited verification result" if st_verified else "No verified proofs yet",
+        "Audited result (last verified pipeline run in database)" if st_verified else "No verified proofs yet",
         "success" if st_verified else "warning",
     )
 
@@ -146,9 +146,9 @@ with metric_col4:
 
 with metric_col5:
     metric_card(
-        "EZKL Environment (Runtime)",
+        "Local Host EZKL Capability (Runtime)",
         "AVAILABLE" if _ezkl_ok else "UNAVAILABLE",
-        "Live runtime check" if _ezkl_ok else "Fail-closed: executions blocked",
+        "Current host environment check (EZKL is active in WSL, unavailable on Windows host)" if not _ezkl_ok else "Live runtime check",
         "success" if _ezkl_ok else "danger",
     )
 
@@ -285,10 +285,10 @@ with vk_col1:
 with vk_col2:
     status_kind = "success" if latest_verified else "danger"
     cyber_card(
-        "Latest Audited Verification Result",
+        "Latest Audited Verification (Historical Audit Record)",
         f"""
         Status: {"VERIFIED" if latest_verified else "NOT_AVAILABLE"}<br>
-        Verified: {st_verified}<br>
+        Verified: {st_verified} (Historical execution verified in database)<br>
         Proof Path: {latest_verified.get('proof_archive_path', '-') if latest_verified else "-"}<br>
         Error: None
         """,
