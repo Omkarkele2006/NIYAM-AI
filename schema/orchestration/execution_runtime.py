@@ -282,9 +282,6 @@ class SubprocessSandboxExecutor(BaseSandboxExecutor):
         )
         process.start()
         
-        # Close the child connection in the parent immediately
-        child_conn.close()
-        
         try:
             if parent_conn.poll(timeout):
                 success, output = parent_conn.recv()
@@ -301,6 +298,10 @@ class SubprocessSandboxExecutor(BaseSandboxExecutor):
                 raise TimeoutError(f"Subprocess tool execution timed out after {timeout} seconds")
         finally:
             parent_conn.close()
+            try:
+                child_conn.close()
+            except Exception:
+                pass
             if process.is_alive():
                 process.terminate()
                 process.join()

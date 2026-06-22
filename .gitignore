@@ -38,3 +38,7 @@ tmp/
 
 # Cache
 .cache/
+
+# Execution-scoped artifacts
+artifacts/executions/*
+!artifacts/executions/.gitkeep

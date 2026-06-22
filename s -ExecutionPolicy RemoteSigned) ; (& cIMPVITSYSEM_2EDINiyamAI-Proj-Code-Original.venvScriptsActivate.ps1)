@@ -1,0 +1,10 @@
+[33me2c74d9[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m docs: validate end-to-end EZKL proof-gated execution
+[33m8c9dcc7[m[33m ([m[1;31morigin/main[m[33m)[m fix: align proof metrics with runtime state and route demo through interceptor
+[33m132ddbf[m fix: unify audit database path across governance services
+[33m47e1725[m feat: introduce governance dashboard and explainability views
+[33m470b977[m feat: introduce policy management and governance lifecycle
+[33m4e6e41b[m feat: harden zkML proof lifecycle and fail-closed verification
+[33m1f46c2f[m feat: migrate audit system to tamper-evident SQLite backend
+[33m610b894[m feat: introduce execution isolation and runtime security controls
+[33mfb71ad8[m feat: enforce universal tool governance and schema validation
+[33m54f6e5b[m chore: stabilize repository structure and remove technical debt

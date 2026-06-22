@@ -49,12 +49,38 @@ class AuditRepository:
                     prev_hash TEXT,
                     current_hash TEXT,
                     raw_data TEXT NOT NULL,
-                    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+                    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                    proof_hash TEXT,
+                    witness_hash TEXT,
+                    input_hash TEXT,
+                    proof_archive_path TEXT,
+                    witness_generation_ms REAL,
+                    proof_generation_ms REAL,
+                    verification_ms REAL,
+                    total_proof_pipeline_ms REAL
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_session ON audit_events (session_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_status ON audit_events (status)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events (timestamp)")
+            
+            # Check current columns and perform migration if missing
+            cursor = conn.execute("PRAGMA table_info(audit_events)")
+            existing_columns = {col["name"] for col in cursor.fetchall()}
+            new_cols = {
+                "proof_hash": "TEXT",
+                "witness_hash": "TEXT",
+                "input_hash": "TEXT",
+                "proof_archive_path": "TEXT",
+                "witness_generation_ms": "REAL",
+                "proof_generation_ms": "REAL",
+                "verification_ms": "REAL",
+                "total_proof_pipeline_ms": "REAL"
+            }
+            for col_name, col_type in new_cols.items():
+                if col_name not in existing_columns:
+                    conn.execute(f"ALTER TABLE audit_events ADD COLUMN {col_name} {col_type}")
+            
             conn.commit()
 
     def get_last_hash(self) -> str:
@@ -137,6 +163,15 @@ class AuditRepository:
         state = event.get("state")
         duration_ms = event.get("duration_ms")
         session_id = event.get("session_id")
+        
+        proof_hash = event.get("proof_hash")
+        witness_hash = event.get("witness_hash")
+        input_hash = event.get("input_hash")
+        proof_archive_path = event.get("proof_archive_path")
+        witness_generation_ms = event.get("witness_generation_ms")
+        proof_generation_ms = event.get("proof_generation_ms")
+        verification_ms = event.get("verification_ms")
+        total_proof_pipeline_ms = event.get("total_proof_pipeline_ms")
 
         with self._get_connection() as conn:
             conn.execute("""
@@ -144,13 +179,17 @@ class AuditRepository:
                     event_id, timestamp, event_type, status, tool_name, detail,
                     intent_hash, action_hash, proof_id, verification, features,
                     reason, execution_id, state, duration_ms, session_id,
-                    prev_hash, current_hash, raw_data
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    prev_hash, current_hash, raw_data,
+                    proof_hash, witness_hash, input_hash, proof_archive_path,
+                    witness_generation_ms, proof_generation_ms, verification_ms, total_proof_pipeline_ms
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 event_id, timestamp, event_type, status, tool_name, detail,
                 intent_hash, action_hash, proof_id, verification, features,
                 reason, execution_id, state, duration_ms, session_id,
-                prev, current_hash, json.dumps(event)
+                prev, current_hash, json.dumps(event),
+                proof_hash, witness_hash, input_hash, proof_archive_path,
+                witness_generation_ms, proof_generation_ms, verification_ms, total_proof_pipeline_ms
             ))
             conn.commit()
             
@@ -341,4 +380,45 @@ class AuditRepository:
             "verification_failure_count": ver_failed,
             "average_proof_latency_ms": avg_gen,
             "average_verification_latency_ms": avg_ver
+        }
+
+    def get_proof_runtime_metrics(self) -> Dict[str, Any]:
+        """
+        Return average and p95 latencies for witness, proof, verification phases, and total pipeline.
+        Calculated over events containing these duration metrics.
+        """
+        query = """
+            SELECT 
+                witness_generation_ms, 
+                proof_generation_ms, 
+                verification_ms, 
+                total_proof_pipeline_ms 
+            FROM audit_events 
+            WHERE witness_generation_ms IS NOT NULL 
+               OR proof_generation_ms IS NOT NULL 
+               OR verification_ms IS NOT NULL 
+               OR total_proof_pipeline_ms IS NOT NULL
+        """
+        with self._get_connection() as conn:
+            rows = conn.execute(query).fetchall()
+            
+        witness_durs = [r["witness_generation_ms"] for r in rows if r["witness_generation_ms"] is not None]
+        proof_durs = [r["proof_generation_ms"] for r in rows if r["proof_generation_ms"] is not None]
+        ver_durs = [r["verification_ms"] for r in rows if r["verification_ms"] is not None]
+        total_durs = [r["total_proof_pipeline_ms"] for r in rows if r["total_proof_pipeline_ms"] is not None]
+        
+        def calculate_stats(durs: list) -> Dict[str, float]:
+            if not durs:
+                return {"avg": 0.0, "p95": 0.0}
+            sorted_durs = sorted(durs)
+            avg = sum(sorted_durs) / len(sorted_durs)
+            p95_idx = int(len(sorted_durs) * 0.95)
+            p95 = sorted_durs[p95_idx] if p95_idx < len(sorted_durs) else sorted_durs[-1]
+            return {"avg": avg, "p95": p95}
+            
+        return {
+            "witness_generation": calculate_stats(witness_durs),
+            "proof_generation": calculate_stats(proof_durs),
+            "verification": calculate_stats(ver_durs),
+            "total_pipeline": calculate_stats(total_durs),
         }

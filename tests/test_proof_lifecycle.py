@@ -73,7 +73,7 @@ class TestProofLifecycle(unittest.TestCase):
         # Test proof generation
         proof_path = generate_proof(features)
         self.assertIsNotNone(proof_path)
-        self.assertEqual(proof_path, "proof.json")
+        self.assertTrue(proof_path.endswith("proof.json"))
         
         # Test artifact structural check
         self.assertTrue(validate_proof_artifacts(proof_path, "witness.json"))

@@ -47,13 +47,21 @@ _VALID_TRANSITIONS = {
 }
 
 
+EXPECTED_FEATURE_DIM = 8
+
+
 def check_ezkl_binary() -> bool:
     """Check if the ezkl utility is installed and executable in the environment path."""
     try:
-        res = subprocess.run(["ezkl", "--version"], capture_output=True, text=True)
+        res = subprocess.run(["ezkl", "--version"], capture_output=True, text=True, timeout=10)
         return res.returncode == 0
     except Exception:
         return False
+
+
+def get_circuit_input_dim() -> int:
+    """Return the expected input dimension for the circuit."""
+    return EXPECTED_FEATURE_DIM
 
 
 def validate_proof_environment() -> Dict[str, Any]:
@@ -111,8 +119,13 @@ def validate_proof_artifacts(proof_path: str, witness_path: str = "witness.json"
     Checks json formats and required parameters to reject malformed files before verifier calls.
     """
     try:
-        p_path = REPO_ROOT / proof_path
-        w_path = REPO_ROOT / witness_path
+        p_path = Path(proof_path)
+        if not p_path.is_absolute():
+            p_path = REPO_ROOT / p_path
+            
+        w_path = Path(witness_path)
+        if not w_path.is_absolute():
+            w_path = REPO_ROOT / w_path
         
         if not p_path.exists() or not w_path.exists():
             return False

@@ -1,16 +1,17 @@
 import time
 import os
+from pathlib import Path
 from schema.action_hash import compute_action_hash
 from schema.audit_logger import log_event
-from schema.zk_prover import generate_proof
-from schema.verifier import verify_proof
+from schema.zk_prover import generate_proof, get_execution_durations
+from schema.verifier import verify_proof, sha256_file
 from schema.ml.feature_extractor import extract_features
 from schema.orchestration.execution_runtime import (
     GovernedExecutionContext,
     GovernedExecutionRuntime,
     derive_execution_id,
 )
-from schema.proof_lifecycle import validate_proof_environment
+from schema.proof_lifecycle import validate_proof_environment, get_circuit_input_dim
 
 # Startup Validation Layer
 _env_report = validate_proof_environment()
@@ -85,6 +86,37 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
             contract
         )
 
+        # STEP 4: Feature Dimension Validation
+        expected_dim = get_circuit_input_dim()
+        if expected_dim is not None and len(features) != expected_dim:
+            log_event({
+                "session_id": contract.session_id,
+                "intent_hash": intent_hash,
+                "action_hash": action_hash,
+                "tool_name": tool_name,
+                "event_type": "FEATURE_DIMENSION_MISMATCH",
+                "status": "BLOCKED",
+                "reason": f"Feature dimension mismatch: got {len(features)}, expected {expected_dim}"
+            })
+            log_event({
+                "session_id": contract.session_id,
+                "intent_hash": intent_hash,
+                "action_hash": action_hash,
+                "tool_name": tool_name,
+                "event_type": "PROOF_EXECUTION_BLOCKED",
+                "status": "BLOCKED",
+                "reason": f"Feature dimension mismatch: got {len(features)}, expected {expected_dim}"
+            })
+            raise Exception(f"Feature dimension mismatch: got {len(features)}, expected {expected_dim}")
+
+        # Pre-derive a unique execution_id
+        execution_id = derive_execution_id(
+            action_hash=action_hash,
+            intent_hash=intent_hash,
+            proof_path="ephemeral_isolated",
+            timestamp_ns=time.time_ns()
+        )
+
         # -- PROOF LIFECYCLE: GENERATION STARTED --
         log_event({
             "session_id": contract.session_id,
@@ -98,7 +130,7 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
         t_start_gen = time.monotonic()
         
         # STEP 5: Generate zk proof
-        proof_path = generate_proof(features)
+        proof_path = generate_proof(features, execution_id=execution_id, session_id=contract.session_id)
         
         t_dur_gen = (time.monotonic() - t_start_gen) * 1000  # ms
 
@@ -126,6 +158,19 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
 
         proof_size = os.path.getsize(proof_path) if os.path.exists(proof_path) else 0
 
+        # Retrieve individual witness & proof generation times
+        durations = get_execution_durations(execution_id) or {}
+        witness_generation_ms = durations.get("witness_generation_ms")
+        proof_generation_ms = durations.get("proof_generation_ms")
+
+        # Compute artifact hashes
+        proof_hash = sha256_file(proof_path) if os.path.exists(proof_path) else None
+        proof_dir = Path(proof_path).parent if proof_path else None
+        witness_path = str(proof_dir / "witness.json") if proof_dir else None
+        input_path = str(proof_dir / "input.json") if proof_dir else None
+        witness_hash = sha256_file(witness_path) if (witness_path and os.path.exists(witness_path)) else None
+        input_hash = sha256_file(input_path) if (input_path and os.path.exists(input_path)) else None
+
         log_event({
             "session_id": contract.session_id,
             "intent_hash": intent_hash,
@@ -135,6 +180,8 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
             "status": "PROCESSING",
             "generation_duration_ms": t_dur_gen,
             "proof_size_bytes": proof_size,
+            "proof_hash": proof_hash,
+            "proof_archive_path": str(Path(proof_path).resolve()) if proof_path else None,
         })
 
         # -- PROOF LIFECYCLE: VERIFICATION STARTED --
@@ -150,7 +197,7 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
         t_start_ver = time.monotonic()
         
         # STEP 6: Verify proof
-        verified = verify_proof(proof_path)
+        verified = verify_proof(proof_path, witness_path=witness_path)
         
         t_dur_ver = (time.monotonic() - t_start_ver) * 1000  # ms
 
@@ -185,15 +232,13 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
             "status": "PROCESSING",
             "verification_duration_ms": t_dur_ver,
             "verification": True,
+            "proof_hash": proof_hash,
+            "witness_hash": witness_hash,
         })
 
         # STEP 7: GOVERNED EXECUTION — timeout-enforced, proof-bound runtime
         exec_context = GovernedExecutionContext(
-            execution_id=derive_execution_id(
-                action_hash=action_hash,
-                intent_hash=intent_hash,
-                proof_path=str(proof_path),
-            ),
+            execution_id=execution_id,
             tool_name=tool_name,
             action_hash=action_hash,
             intent_hash=intent_hash,
@@ -210,7 +255,7 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
 
         result = exec_result.result
 
-        # STEP 8: LOG SUCCESS
+        # STEP 8: GOVERNED EXECUTION COMPLETED (LOG SUCCESS WITH METRICS)
         log_event({
             "session_id": contract.session_id,
             "intent_hash": intent_hash,
@@ -221,6 +266,14 @@ def intercept_execution(tool_name, payload, contract, cfi, gate, execute_func):
             "verification": True,
             "status": "EXECUTED",
             "execution_id": exec_context.execution_id,
+            "proof_hash": proof_hash,
+            "witness_hash": witness_hash,
+            "input_hash": input_hash,
+            "proof_archive_path": str(Path(proof_path).resolve()) if proof_path else None,
+            "witness_generation_ms": witness_generation_ms,
+            "proof_generation_ms": proof_generation_ms,
+            "verification_ms": t_dur_ver,
+            "total_proof_pipeline_ms": t_dur_gen + t_dur_ver,
         })
 
         return result
